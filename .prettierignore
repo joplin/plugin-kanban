@@ -1,0 +1,8 @@
+dist/
+node_modules/
+publish/
+api/
+*.js
+*.json
+*.md
+*.yaml
