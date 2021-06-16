@@ -1,5 +1,16 @@
-import { RuleFactory, NoteData } from "./types";
-import { getTagId } from "./noteData";
+import { Config, DataQuery } from "./board";
+import { getTagId, NoteData } from "./noteData";
+
+export interface Rule {
+  searchQueries: string[];
+  set(note: NoteData): DataQuery;
+  unset(note: NoteData): DataQuery;
+}
+
+export type RuleFactory = (
+  ruleValue: string | string[],
+  rawConfig: Config
+) => Promise<Rule>;
 
 type Rules = { [ruleName: string]: RuleFactory };
 

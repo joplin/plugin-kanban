@@ -1,5 +1,20 @@
 import joplin from "api";
-import { NoteData, Notebook, BoardNoteData } from "./types";
+
+export interface ConfigNote {
+  id: string;
+  title: string;
+  parent_id: string;
+  body: string;
+}
+
+export interface NoteData {
+  id: string;
+  title: string;
+  tags: string[];
+  notebookId: string;
+  isTodo: boolean;
+  isCompleted: boolean;
+}
 
 export async function searchNotes(query: string): Promise<NoteData[]> {
   const fields = ["id", "title", "parent_id", "is_todo", "todo_completed"];
@@ -33,9 +48,7 @@ export async function searchNotes(query: string): Promise<NoteData[]> {
         tags,
         isTodo: !!is_todo,
         isCompleted: !!todo_completed,
-        notebook: {
-          id: parent_id,
-        },
+        notebookId: parent_id,
       });
     }
 
@@ -46,7 +59,7 @@ export async function searchNotes(query: string): Promise<NoteData[]> {
   return result;
 }
 
-export function getBoardNote(noteId: string): Promise<BoardNoteData> {
+export function getConfigNote(noteId: string): Promise<ConfigNote> {
   const fields = ["id", "title", "parent_id", "body"];
   return joplin.data.get(["notes", noteId], { fields });
 }
@@ -59,10 +72,9 @@ export async function getTagId(tagName: string): Promise<string> {
 export async function resolveNotebookPath(
   notebookPath: string,
   rootNotebookId = ""
-): Promise<Notebook | null> {
+): Promise<string | null> {
   const { items: foldersData } = await joplin.data.get(["folders"]);
   const parts = notebookPath.split("/");
-  const name = parts[parts.length - 1];
 
   let parentId = rootNotebookId;
   do {
@@ -76,8 +88,5 @@ export async function resolveNotebookPath(
     parentId = currentFolder.id;
   } while (parts.length);
 
-  return {
-    id: parentId,
-    name,
-  };
+  return parentId;
 }
