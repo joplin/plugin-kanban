@@ -1,10 +1,10 @@
-import { Config, DataQuery } from "./board";
-import { getTagId } from "./noteData";
+import { Config } from "./board";
+import { getTagId, ApiQuery } from "./noteData";
 
 export interface Rule {
   searchQueries: string[];
-  set(noteId: string): DataQuery[];
-  unset(noteId: string): DataQuery[];
+  set(noteId: string): ApiQuery[];
+  unset(noteId: string): ApiQuery[];
 }
 
 export type RuleFactory = (
