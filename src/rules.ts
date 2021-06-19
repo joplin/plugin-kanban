@@ -9,7 +9,7 @@ export interface Rule {
 
 export type RuleFactory = (
   ruleValue: string | string[],
-  rawConfig: Config
+  config: Config
 ) => Promise<Rule>;
 
 type Rules = { [ruleName: string]: RuleFactory };

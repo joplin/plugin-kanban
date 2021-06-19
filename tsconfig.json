@@ -3,7 +3,7 @@
 		"strict": true,
 		"outDir": "./dist/",
 		"module": "commonjs",
-		"target": "es2015",
+		"target": "ES2019",
 		"jsx": "react",
 		"allowJs": true,
 		"baseUrl": "."

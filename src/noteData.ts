@@ -1,7 +1,6 @@
 import joplin from "api";
 
 export interface ConfigNote {
-  id: string;
   title: string;
   parent_id: string;
   body: string;

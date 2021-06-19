@@ -7,6 +7,7 @@ import {
   resolveNotebookPath,
   NoteData,
 } from "./noteData";
+import type { Action } from "./actions"
 
 export interface Config {
   filters: {
@@ -23,7 +24,7 @@ export interface Config {
 export interface DataQuery {
   method: "post" | "delete" | "put";
   path: string[];
-  body?: any;
+  body?: object;
 }
 
 interface Column {
@@ -37,10 +38,14 @@ interface SortedColumn {
   notes: NoteData[];
 }
 
+export type BoardState = SortedColumn[];
+
 export interface Board {
   boardName: string;
   updateNotes(): void;
-  sortedColumns: SortedColumn[];
+  hasNote(noteId: string): boolean;
+  processAction(action: Action): void;
+  getState(): BoardState;
 }
 
 const parseConfigNote = async (
@@ -67,10 +72,10 @@ const createQueryFromRules = (rules: Rule[], negate: boolean) =>
 export default async function (boardNoteId: string): Promise<Board | null> {
   const {
     title: boardName,
-    body: configStr,
+    body: configBody,
     parent_id: boardNotebookId,
   } = await getConfigNote(boardNoteId);
-  const configObj = await parseConfigNote(configStr);
+  const configObj = await parseConfigNote(configBody);
   if (!configObj) return null;
 
   const { rootNotebookPath = "." } = configObj.filters;
@@ -108,11 +113,11 @@ export default async function (boardNoteId: string): Promise<Board | null> {
     columns.push(newCol);
   }
 
+  let boardState: BoardState = [];
   const board: Board = {
     boardName,
-    sortedColumns: [],
     async updateNotes() {
-      board.sortedColumns = [];
+      boardState = [];
 
       for (let colIdx = 0; colIdx < columns.length; colIdx++) {
         const col = columns[colIdx];
@@ -127,12 +132,26 @@ export default async function (boardNoteId: string): Promise<Board | null> {
             .join(" ");
         }
 
-        board.sortedColumns.push({
+        boardState.push({
           name: col.name,
           notes: await searchNotes(query),
         });
       }
     },
+
+
+    processAction({ type, payload }: Action) {
+      switch (type) {
+        case 'moveNote':
+
+          break
+        default:
+          throw new Error('Unknown action ' + name)
+      }
+    },
+    
+    hasNote: (noteId: string) => !!boardState.find(({ notes }) => notes.find(({ id }) => noteId === id)),
+    getState: () => boardState
   };
 
   return board;
