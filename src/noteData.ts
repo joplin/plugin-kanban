@@ -40,7 +40,9 @@ export async function searchNotes(query: string): Promise<NoteData[]> {
     );
 
     for (const { id, title, parent_id, is_todo, todo_completed } of notes) {
-      const tags = await joplin.data.get(["notes", id, "tags"]);
+      const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
+        ({ title }: { title: string }) => title
+      );
       result.push({
         id,
         title,
