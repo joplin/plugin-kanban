@@ -2,12 +2,12 @@ import * as yaml from "js-yaml";
 
 import rules, { Rule } from "./rules";
 import {
-  getConfigNote,
-  searchNotes,
   resolveNotebookPath,
-  NoteData,
+  ApiQuery,
+  ConfigNote,
+  SearchQuery,
 } from "./noteData";
-import type { Action } from "./actions"
+import type { Action } from "./actions";
 
 export interface Config {
   filters: {
@@ -21,36 +21,22 @@ export interface Config {
   }[];
 }
 
-export interface DataQuery {
-  method: "post" | "delete" | "put";
-  path: string[];
-  body?: object;
-}
-
 interface Column {
   name: string;
   rules: Rule[];
   backlog: boolean;
 }
 
-interface SortedColumn {
-  name: string;
-  notes: NoteData[];
-}
-
-export type BoardState = SortedColumn[];
-
 export interface Board {
   boardName: string;
-  updateNotes(): void;
-  hasNote(noteId: string): boolean;
-  processAction(action: Action): void;
-  getState(): BoardState;
+  checkIfHasNoteQuery(noteId: string): ApiQuery;
+  columnQueries: {
+    [colName: string]: ApiQuery;
+  };
+  actionToQuery(action: Action): ApiQuery[];
 }
 
-const parseConfigNote = async (
-  boardNoteBody: string
-): Promise<Config | null> => {
+const parseConfigNote = (boardNoteBody: string): Config | null => {
   const configRegex = /^```kanban(.*)```/ms;
   const match = boardNoteBody.match(configRegex);
   if (!match || match.length < 2) return null;
@@ -69,13 +55,12 @@ const createQueryFromRules = (rules: Rule[], negate: boolean) =>
     )
     .join("	");
 
-export default async function (boardNoteId: string): Promise<Board | null> {
-  const {
-    title: boardName,
-    body: configBody,
-    parent_id: boardNotebookId,
-  } = await getConfigNote(boardNoteId);
-  const configObj = await parseConfigNote(configBody);
+export default async function ({
+  title: boardName,
+  body: configBody,
+  parent_id: boardNotebookId,
+}: ConfigNote): Promise<Board | null> {
+  const configObj = parseConfigNote(configBody);
   if (!configObj) return null;
 
   const { rootNotebookPath = "." } = configObj.filters;
@@ -113,45 +98,56 @@ export default async function (boardNoteId: string): Promise<Board | null> {
     columns.push(newCol);
   }
 
-  let boardState: BoardState = [];
+  const columnQueries: Board["columnQueries"] = {};
+  columns.forEach((col) => {
+    let query = createQueryFromRules(filters, false) + " ";
+    if (!col.backlog) {
+      query += createQueryFromRules(col.rules, false);
+    } else {
+      const allOtherCols = columns.filter((c: Column) => c !== col);
+      query += allOtherCols
+        .map((c: Column) => createQueryFromRules(c.rules, true))
+        .join(" ");
+    }
+
+    columnQueries[col.name] = {
+      type: "search",
+      query,
+    };
+  });
+
+  const allNotesQueryStr = (
+    Object.values(columnQueries) as SearchQuery[]
+  ).reduce((acc, { query }) => `${acc} ${query}`, "");
+
   const board: Board = {
     boardName,
-    async updateNotes() {
-      boardState = [];
+    columnQueries,
 
-      for (let colIdx = 0; colIdx < columns.length; colIdx++) {
-        const col = columns[colIdx];
-
-        let query = createQueryFromRules(filters, false) + " ";
-        if (!col.backlog) {
-          query += createQueryFromRules(col.rules, false);
-        } else {
-          const allOtherCols = columns.filter((c: Column) => c !== col);
-          query += allOtherCols
-            .map((c: Column) => createQueryFromRules(c.rules, true))
-            .join(" ");
-        }
-
-        boardState.push({
-          name: col.name,
-          notes: await searchNotes(query),
-        });
-      }
-    },
-
-
-    processAction({ type, payload }: Action) {
+    actionToQuery({ type, payload }: Action) {
       switch (type) {
-        case 'moveNote':
+        case "moveNote":
+          const { noteId, newColumnName, oldColumnName } = payload;
+          const newCol = columns.find(
+            ({ name }) => name === newColumnName
+          ) as Column;
+          const oldCol = columns.find(
+            ({ name }) => name === oldColumnName
+          ) as Column;
 
-          break
+          const unsetQueries = oldCol.rules.flatMap((r) => r.unset(noteId));
+          const setQueries = newCol.rules.flatMap((r) => r.set(noteId));
+
+          return [...unsetQueries, ...setQueries];
         default:
-          throw new Error('Unknown action ' + name)
+          throw new Error("Unknown action " + type);
       }
     },
-    
-    hasNote: (noteId: string) => !!boardState.find(({ notes }) => notes.find(({ id }) => noteId === id)),
-    getState: () => boardState
+
+    checkIfHasNoteQuery: (noteId: string) => ({
+      type: "search",
+      query: `id:${noteId} ${allNotesQueryStr}`,
+    }),
   };
 
   return board;

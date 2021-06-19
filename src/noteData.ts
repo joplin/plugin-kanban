@@ -1,5 +1,18 @@
 import joplin from "api";
 
+export interface UpdateQuery {
+  type: "post" | "delete" | "put";
+  path: string[];
+  body?: object;
+}
+
+export interface SearchQuery {
+  type: "search";
+  query: string;
+}
+
+export type ApiQuery = UpdateQuery | SearchQuery
+
 export interface ConfigNote {
   title: string;
   parent_id: string;

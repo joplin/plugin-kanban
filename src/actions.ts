@@ -2,6 +2,7 @@ export interface MoveNoteAction {
   type: "moveNote";
   payload: {
     noteId: string;
+    oldColumnName: string;
     newColumnName: string;
   };
 }

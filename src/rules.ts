@@ -1,10 +1,10 @@
 import { Config, DataQuery } from "./board";
-import { getTagId, NoteData } from "./noteData";
+import { getTagId } from "./noteData";
 
 export interface Rule {
   searchQueries: string[];
-  set(note: NoteData): DataQuery;
-  unset(note: NoteData): DataQuery;
+  set(noteId: string): DataQuery[];
+  unset(noteId: string): DataQuery[];
 }
 
 export type RuleFactory = (
@@ -20,15 +20,15 @@ const rules: Rules = {
     const tagID = await getTagId(tagName);
     return {
       searchQueries: [`tag:${tagName}`],
-      set: ({ id }: NoteData) => ({
-        method: "post",
+      set: (noteId: string) => ([{
+        type: "post",
         path: ["tags", tagID, "notes"],
-        body: { id },
-      }),
-      unset: ({ id }: NoteData) => ({
-        method: "delete",
-        path: ["tags", tagID, "notes", id],
-      }),
+        body: { id: noteId },
+      }]),
+      unset: (noteId: string) => ([{
+        type: "delete",
+        path: ["tags", tagID, "notes", noteId],
+      }]),
     };
   },
 };
