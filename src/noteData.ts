@@ -11,9 +11,8 @@ export interface SearchQuery {
   query: string;
 }
 
-export type ApiQuery = UpdateQuery | SearchQuery
-
 export interface ConfigNote {
+  id: string;
   title: string;
   parent_id: string;
   body: string;
@@ -28,8 +27,9 @@ export interface NoteData {
   isCompleted: boolean;
 }
 
-export async function searchNotes(query: string): Promise<NoteData[]> {
+export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
   const fields = ["id", "title", "parent_id", "is_todo", "todo_completed"];
+  const { query } = apiQuery;
 
   type RawNote = {
     id: string;
@@ -71,6 +71,11 @@ export async function searchNotes(query: string): Promise<NoteData[]> {
   }
 
   return result;
+}
+
+export async function executeUpdateQuery(updateQuery: UpdateQuery) {
+  const { type, path, body = null } = updateQuery;
+  await joplin.data[type](path, null, body);
 }
 
 export function getConfigNote(noteId: string): Promise<ConfigNote> {
