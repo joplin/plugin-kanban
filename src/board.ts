@@ -74,10 +74,12 @@ export default async function ({
 
   let filterQuery: string = "";
   for (const key in configObj.filters) {
-    if (key !== "rootNotebookPath" && key in rules) {
+    if (key === "rootNotebookPath") {
+      filterQuery += ` notebookid:${rootNotebookId}`
+    } else if (key in rules) {
       const val = configObj.filters[key];
       const rule = await rules[key](val, configObj);
-      filterQuery += createQueryFromRules([rule], false);
+      filterQuery += " " + createQueryFromRules([rule], false);
     }
   }
 
