@@ -3,9 +3,9 @@ import * as yaml from "js-yaml";
 import rules, { Rule } from "./rules";
 import {
   resolveNotebookPath,
-  ApiQuery,
   ConfigNote,
   SearchQuery,
+  UpdateQuery,
 } from "./noteData";
 import type { Action } from "./actions";
 
@@ -28,12 +28,13 @@ interface Column {
 }
 
 export interface Board {
+  configNoteId: string;
   boardName: string;
-  checkIfHasNoteQuery(noteId: string): ApiQuery;
+  allNotesQuery: SearchQuery;
   columnQueries: {
-    [colName: string]: ApiQuery;
+    [colName: string]: SearchQuery;
   };
-  actionToQuery(action: Action): ApiQuery[];
+  actionToQuery(action: Action): UpdateQuery[];
 }
 
 const parseConfigNote = (boardNoteBody: string): Config | null => {
@@ -56,6 +57,7 @@ const createQueryFromRules = (rules: Rule[], negate: boolean) =>
     .join("	");
 
 export default async function ({
+  id: configNoteId,
   title: boardName,
   body: configBody,
   parent_id: boardNotebookId,
@@ -70,12 +72,12 @@ export default async function ({
       : await resolveNotebookPath(rootNotebookPath);
   if (!rootNotebookId) return null;
 
-  const filters: Rule[] = [];
+  let filterQuery: string = "";
   for (const key in configObj.filters) {
     if (key !== "rootNotebookPath" && key in rules) {
       const val = configObj.filters[key];
       const rule = await rules[key](val, configObj);
-      filters.push(rule);
+      filterQuery += createQueryFromRules([rule], false);
     }
   }
 
@@ -100,7 +102,7 @@ export default async function ({
 
   const columnQueries: Board["columnQueries"] = {};
   columns.forEach((col) => {
-    let query = createQueryFromRules(filters, false) + " ";
+    let query = filterQuery + " ";
     if (!col.backlog) {
       query += createQueryFromRules(col.rules, false);
     } else {
@@ -116,11 +118,8 @@ export default async function ({
     };
   });
 
-  const allNotesQueryStr = (
-    Object.values(columnQueries) as SearchQuery[]
-  ).reduce((acc, { query }) => `${acc} ${query}`, "");
-
   const board: Board = {
+    configNoteId,
     boardName,
     columnQueries,
 
@@ -144,10 +143,10 @@ export default async function ({
       }
     },
 
-    checkIfHasNoteQuery: (noteId: string) => ({
+    allNotesQuery: {
       type: "search",
-      query: `id:${noteId} ${allNotesQueryStr}`,
-    }),
+      query: filterQuery,
+    },
   };
 
   return board;
