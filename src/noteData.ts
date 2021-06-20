@@ -29,7 +29,17 @@ export interface NoteData {
 
 export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
   const fields = ["id", "title", "parent_id", "is_todo", "todo_completed"];
-  const { query } = apiQuery;
+  let { query } = apiQuery;
+
+  // Hack: to avoid conflicts between notebooks with the same name, a custom `notebookid` search filter is implemented here
+  // TODO: solve recurrent search and negation
+  let notebookIds: string[] | undefined;
+  const notebookidPat = /notebookid:\w+/;
+  const notebookidMatches = query.match(notebookidPat);
+  if (notebookidMatches && notebookidMatches.length > 0) {
+    notebookIds = notebookidMatches.map((id) => id.split(":")[1]);
+    query = query.replace(notebookidPat, "");
+  }
 
   type RawNote = {
     id: string;
@@ -52,7 +62,19 @@ export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
       { query, page, fields }
     );
 
-    for (const { id, title, parent_id, is_todo, todo_completed } of notes) {
+    const filteredNotes = notebookIds
+      ? notes.filter(({ parent_id }) =>
+          (notebookIds as string[]).includes(parent_id)
+        )
+      : notes;
+
+    for (const {
+      id,
+      title,
+      parent_id,
+      is_todo,
+      todo_completed,
+    } of filteredNotes) {
       const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
         ({ title }: { title: string }) => title
       );
@@ -90,14 +112,22 @@ export async function getTagId(tagName: string): Promise<string> {
 
 export async function resolveNotebookPath(
   notebookPath: string,
-  rootNotebookId = ""
+  rootNotebookPath = "/"
 ): Promise<string | null> {
+  if (notebookPath.startsWith("/")) notebookPath = notebookPath.slice(1);
+  if (!rootNotebookPath.endsWith("/"))
+    rootNotebookPath = rootNotebookPath + "/";
+
+  notebookPath = rootNotebookPath + notebookPath;
+
   const { items: foldersData } = await joplin.data.get(["folders"]);
   const parts = notebookPath.split("/");
 
-  let parentId = rootNotebookId;
+  let parentId = "";
   do {
     const currentPart = parts.shift();
+    if (currentPart === "") continue;
+
     const currentFolder = foldersData.find(
       ({ title, parent_id }: { title: string; parent_id: string }) =>
         title === currentPart && parent_id === parentId
