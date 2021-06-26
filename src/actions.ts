@@ -7,4 +7,9 @@ export interface MoveNoteAction {
   };
 }
 
-export type Action = MoveNoteAction;
+export interface LoadAction {
+  type: "load";
+  payload: never;
+}
+
+export type Action = MoveNoteAction | LoadAction;
