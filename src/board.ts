@@ -32,18 +32,19 @@ export interface Board {
   boardName: string;
   allNotesQuery: SearchQuery;
   columnQueries: {
-    [colName: string]: SearchQuery;
-  };
+    colName: string;
+    query: SearchQuery;
+  }[];
   actionToQuery(action: Action): UpdateQuery[];
 }
 
-const parseConfigNote = (boardNoteBody: string): Config | null => {
+const parseConfigNote = (boardNoteBody: string): Config | null | {} => {
   const configRegex = /^```kanban(.*)```/ms;
   const match = boardNoteBody.match(configRegex);
   if (!match || match.length < 2) return null;
 
   const configStr = match[1];
-  const configObj = yaml.load(configStr) as Config;
+  const configObj = yaml.load(configStr) as Config | {};
 
   // TODO: return error messages on invalid configs
   return configObj;
@@ -63,7 +64,8 @@ export default async function ({
   parent_id: boardNotebookId,
 }: ConfigNote): Promise<Board | null> {
   const configObj = parseConfigNote(configBody);
-  if (!configObj) return null;
+  if (!configObj || !("filters" in configObj) || !("columns" in configObj))
+    return null;
 
   const { rootNotebookPath = "." } = configObj.filters;
   const rootNotebookId =
@@ -75,7 +77,7 @@ export default async function ({
   let filterQuery: string = "";
   for (const key in configObj.filters) {
     if (key === "rootNotebookPath") {
-      filterQuery += ` notebookid:${rootNotebookId}`
+      filterQuery += ` notebookid:${rootNotebookId}`;
     } else if (key in rules) {
       const val = configObj.filters[key];
       const rule = await rules[key](val, configObj);
@@ -92,8 +94,9 @@ export default async function ({
     };
 
     for (const key in col) {
-      const val = col[key];
-      if (val && key in rules && typeof val !== "boolean") {
+      let val = col[key];
+      if (typeof val === "boolean") val = `${val}`;
+      if (val && key in rules) {
         const rule = await rules[key](val, configObj);
         newCol.rules.push(rule);
       }
@@ -102,7 +105,7 @@ export default async function ({
     columns.push(newCol);
   }
 
-  const columnQueries: Board["columnQueries"] = {};
+  const columnQueries: Board["columnQueries"] = [];
   columns.forEach((col) => {
     let query = filterQuery + " ";
     if (!col.backlog) {
@@ -114,10 +117,13 @@ export default async function ({
         .join(" ");
     }
 
-    columnQueries[col.name] = {
-      type: "search",
-      query,
-    };
+    columnQueries.push({
+      colName: col.name,
+      query: {
+        type: "search",
+        query,
+      },
+    });
   });
 
   const board: Board = {
