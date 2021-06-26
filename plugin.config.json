@@ -1,3 +1,5 @@
 {
-	"extraScripts": []
+	"extraScripts": [
+		"gui/index.tsx"
+	]
 }

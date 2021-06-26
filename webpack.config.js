@@ -196,9 +196,6 @@ function resolveExtraScriptPath(name) {
 		output: {
 			filename: `${nameNoExt}.js`,
 			path: distDir,
-			library: 'default',
-			libraryTarget: 'commonjs',
-			libraryExport: 'default',
 		},
 	};
 }
