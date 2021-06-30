@@ -11,15 +11,24 @@ export interface BoardState {
   }[];
 }
 
-export default function () {
-  const [board, setBoard] = useState<BoardState | null>();
+interface State {
+  board?: BoardState;
+  waitingForUpdate: boolean;
+}
+
+export default function(): [BoardState | undefined, boolean, (action: Action) => void] {
+  const [state, setState] = useState<State>({ waitingForUpdate: false });
+
+  const dispatch = (action: Action) => {
+    setState({ ...state, waitingForUpdate: true })
+    webviewApi.postMessage(action).then((newBoard: BoardState) => {
+      setState({ board: newBoard, waitingForUpdate: false })
+    });
+  }
 
   useEffect(() => {
-    webviewApi.postMessage({ type: "load" }).then(setBoard);
+    dispatch({ type: "load" } as Action)
   }, []);
 
-  const dispatch = (action: Action) =>
-    webviewApi.postMessage(action).then(setBoard);
-
-  return [board, dispatch];
+  return [state.board, state.waitingForUpdate, dispatch];
 }
