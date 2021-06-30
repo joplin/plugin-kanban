@@ -1,13 +1,25 @@
 import joplin from "api";
 
 import createBoard, { Board } from "./board";
-import { getConfigNote, searchNotes } from "./noteData";
+import { getConfigNote, searchNotes, executeUpdateQuery } from "./noteData";
+import { Action } from "./actions";
 
 let openBoard: Board | undefined;
 
-function showBoard() {}
+async function showBoard() {}
 
 function hideBoard() {}
+
+function getNotesForEachColumn() {
+  if (!openBoard) return;
+
+  return Promise.all(
+    openBoard.columnQueries.map(async ({ colName, query }) => ({
+      name: colName,
+      notes: await searchNotes(query),
+    }))
+  );
+}
 
 async function handleNewlyOpenedNote(newNoteId: string) {
   if (openBoard) {
@@ -41,5 +53,16 @@ joplin.plugins.register({
         if (newNoteId) handleNewlyOpenedNote(newNoteId);
       }
     );
+
+    const view = await joplin.views.panels.create("kanban");
+    await joplin.views.panels.setHtml(view, '<div id="root"></div>');
+    await joplin.views.panels.addScript(view, "gui/main.css")
+    await joplin.views.panels.addScript(view, "gui/index.js");
+    joplin.views.panels.onMessage(view, async (msg: Action) => {
+      if (!openBoard) return;
+      if (msg.type !== "load")
+        await Promise.all(openBoard.actionToQuery(msg).map(executeUpdateQuery));
+      return { name: openBoard.boardName, columns: await getNotesForEachColumn() };
+    });
   },
 });
