@@ -131,10 +131,10 @@ export default async function ({
     boardName,
     columnQueries,
 
-    actionToQuery({ type, payload }: Action) {
-      switch (type) {
+    actionToQuery(action: Action) {
+      switch (action.type) {
         case "moveNote":
-          const { noteId, newColumnName, oldColumnName } = payload;
+          const { noteId, newColumnName, oldColumnName } = action.payload;
           const newCol = columns.find(
             ({ name }) => name === newColumnName
           ) as Column;
@@ -147,7 +147,7 @@ export default async function ({
 
           return [...unsetQueries, ...setQueries];
         default:
-          throw new Error("Unknown action " + type);
+          throw new Error("Unknown action " + action.type);
       }
     },
 

@@ -27,7 +27,7 @@ export default function(): [BoardState | undefined, boolean, (action: Action) =>
   }
 
   useEffect(() => {
-    dispatch({ type: "load" } as Action)
+    dispatch({ type: "load" })
   }, []);
 
   return [state.board, state.waitingForUpdate, dispatch];
