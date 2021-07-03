@@ -3,14 +3,13 @@ import { render } from 'react-dom'
 import styled from 'styled-components'
 import { DragDropContext, OnDragEndResponder, OnDragStartResponder } from 'react-beautiful-dnd'
 
-import type { NoteData } from '../noteData'
-import useBoard from './useBoard'
+import { useRemoteBoard, useTempBoard } from './hooks'
 import Column from './Column'
 
 function App() {
-  const [board, waitingForUpdate, dispatch] = useBoard();
+  const [board, waitingForUpdate, dispatch] = useRemoteBoard();
   const [currentDragSource, setDragSource] = useState<string | null>(null);
-  const [appendedNote, setAppendedNote] = useState<{ col: string; note: NoteData } | null>(null)
+  const [tempBoard, tempMoveNote] = useTempBoard(board);
 
   const onDragStart: OnDragStartResponder = (start) => {
     setDragSource(start.source.droppableId)
@@ -18,11 +17,11 @@ function App() {
   const onDragEnd: OnDragEndResponder = (drop) => {
     if (!drop.destination || !board) return
 
-    dispatch({ type: "moveNote", payload: { noteId: drop.draggableId, oldColumnName: drop.source.droppableId, newColumnName: drop.destination.droppableId } })
-    setAppendedNote({
-      col: drop.destination.droppableId,
-      note: (board.columns.find(({ name }) => name === drop.source.droppableId)?.notes as NoteData[]).find(({ id }) => id === drop.draggableId) as NoteData
-    })
+    const noteId = drop.draggableId;
+    const oldColumnName = drop.source.droppableId;
+    const newColumnName = drop.destination.droppableId;
+    dispatch({ type: "moveNote", payload: { noteId, oldColumnName, newColumnName } })
+    tempMoveNote(noteId, oldColumnName, newColumnName)
   }
 
   return board ?
@@ -34,19 +33,12 @@ function App() {
           onDragEnd={onDragEnd}
         >
           {board.columns.map(({ name, notes }) => {
-            let notesToRender = notes;
-            if (waitingForUpdate) {
-              if (appendedNote?.col === name) notesToRender = [...notes, appendedNote.note]
-              else {
-                const noteIdx = notes.indexOf(appendedNote?.note as NoteData)
-                if (noteIdx !== -1) notesToRender = [...notes.slice(0, noteIdx), ...notes.slice(noteIdx + 1)]
-              }
-            }
+            const tempCol = tempBoard?.columns.find(({ name: n }) => n === name)
 
             return <Column
               key={name}
               name={name}
-              notes={notesToRender}
+              notes={waitingForUpdate && tempCol ? tempCol.notes : notes}
               draggedFromHere={name === currentDragSource}
             />
           }
