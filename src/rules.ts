@@ -1,8 +1,8 @@
 import { Config } from "./board";
-import { getTagId, UpdateQuery, resolveNotebookPath } from "./noteData";
+import { getTagId, UpdateQuery, SearchFilter, createFilter, resolveNotebookPath } from "./noteData";
 
 export interface Rule {
-  searchQueries: string[];
+  searchFilters: SearchFilter[];
   set(noteId: string): UpdateQuery[];
   unset(noteId: string): UpdateQuery[];
 }
@@ -19,7 +19,7 @@ const rules: Rules = {
     if (Array.isArray(tagName)) tagName = tagName[0];
     const tagID = await getTagId(tagName);
     return {
-      searchQueries: [`tag:${tagName}`],
+      searchFilters: [createFilter("tag", tagName)],
       set: (noteId: string) => [
         {
           type: "post",
@@ -42,7 +42,7 @@ const rules: Rules = {
       tagNames.map((t) => rules.tag(t, config))
     );
     return {
-      searchQueries: tagRules.flatMap(({ searchQueries }) => searchQueries),
+      searchFilters: tagRules.flatMap(({ searchFilters }) => searchFilters),
       set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
       unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
     };
@@ -53,10 +53,9 @@ const rules: Rules = {
     const notebookId = await resolveNotebookPath(
       path,
       config.filters.rootNotebookPath
-    );
-    const notebook = path.split("/").pop();
+    ) as string;
     return {
-      searchQueries: [`notebook:"${notebook}"`],
+      searchFilters: [createFilter("notebookid", notebookId)],
       set: (noteId: string) => [
         {
           type: "put",
@@ -74,7 +73,7 @@ const rules: Rules = {
     if (Array.isArray(val)) val = val[0];
     const shouldBeCompeted = val.toLowerCase() === "true";
     return {
-      searchQueries: [`iscompleted:${shouldBeCompeted ? 1 : 0}`],
+      searchFilters: [createFilter("iscompleted", `${shouldBeCompeted ? 1 : 0}`)],
       set: (noteId: string) => [
         {
           type: "put",

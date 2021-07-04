@@ -87,10 +87,10 @@ describe("Board", () => {
         body: testConfigBody,
         parent_id: "id",
       })) as Board;
-      expect(board.allNotesQuery.query).toContain(
+      expect(board.allNotesQuery.filters).toContain(
         "notebookid:test/nested test"
       );
-      expect(board.allNotesQuery.query).toContain("tag:task");
+      expect(board.allNotesQuery.filters).toContain("tag:task");
     });
   });
 
@@ -114,8 +114,8 @@ describe("Board", () => {
         parent_id: "id",
       })) as Board;
 
-      board.columnQueries.forEach(({ query: { query } }) => {
-        expect(query).toContain(board.allNotesQuery.query);
+      board.columnQueries.forEach(({ query: { filters } }) => {
+        expect(filters).toContain(board.allNotesQuery.filters);
       });
     });
 
@@ -128,7 +128,7 @@ describe("Board", () => {
           parent_id: "id",
         })) as Board;
 
-        const backlogQuery = board.columnQueries[0].query.query;
+        const backlogQuery = board.columnQueries[0].query.filters;
         expect(backlogQuery).toContain("-tag:ready");
         expect(backlogQuery).toContain('-notebook:"working"');
         expect(backlogQuery).toContain("-iscompleted:1");
@@ -145,7 +145,7 @@ describe("Board", () => {
           parent_id: "id",
         })) as Board;
 
-        expect(board.columnQueries[1].query.query).toContain("tag:ready");
+        expect(board.columnQueries[1].query.filters).toContain("tag:ready");
       });
     });
 
@@ -158,8 +158,8 @@ describe("Board", () => {
           parent_id: "id",
         })) as Board;
 
-        expect(board.columnQueries[3].query.query).toContain("tag:done");
-        expect(board.columnQueries[3].query.query).toContain("tag:completed");
+        expect(board.columnQueries[3].query.filters).toContain("tag:done");
+        expect(board.columnQueries[3].query.filters).toContain("tag:completed");
       });
     });
 
@@ -172,7 +172,7 @@ describe("Board", () => {
           parent_id: "id",
         })) as Board;
 
-        expect(board.columnQueries[2].query.query).toContain(
+        expect(board.columnQueries[2].query.filters).toContain(
           'notebook:"working"'
         );
       });
@@ -187,7 +187,7 @@ describe("Board", () => {
           parent_id: "id",
         })) as Board;
 
-        expect(board.columnQueries[3].query.query).toContain("iscompleted:1");
+        expect(board.columnQueries[3].query.filters).toContain("iscompleted:1");
       });
     });
   });

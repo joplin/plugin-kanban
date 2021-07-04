@@ -1,4 +1,5 @@
 import joplin from "api";
+import createCustomFilters from './customSearchFilters'
 
 export interface UpdateQuery {
   type: "post" | "delete" | "put";
@@ -6,9 +7,15 @@ export interface UpdateQuery {
   body?: object;
 }
 
+export interface SearchFilter {
+  name: string;
+  criteria: string;
+  negated: boolean;
+}
+
 export interface SearchQuery {
   type: "search";
-  query: string;
+  filters: SearchFilter[];
 }
 
 export interface ConfigNote {
@@ -27,19 +34,15 @@ export interface NoteData {
   isCompleted: boolean;
 }
 
+export const createFilter = (name: string, criteria: string, negated = false): SearchFilter => ({
+  name, criteria, negated
+})
+
 export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
   const fields = ["id", "title", "parent_id", "is_todo", "todo_completed"];
-  let { query } = apiQuery;
+  let { filters } = apiQuery;
 
-  // Hack: to avoid conflicts between notebooks with the same name, a custom `notebookid` search filter is implemented here
-  // TODO: solve recurrent search and negation
-  let notebookIds: string[] | undefined;
-  const notebookidPat = /notebookid:\w+/;
-  const notebookidMatches = query.match(notebookidPat);
-  if (notebookidMatches && notebookidMatches.length > 0) {
-    notebookIds = notebookidMatches.map((id) => id.split(":")[1]);
-    query = query.replace(notebookidPat, "");
-  }
+  const [searchString, predicate] = await createCustomFilters(filters)
 
   type RawNote = {
     id: string;
@@ -59,14 +62,8 @@ export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
   while (true) {
     const { items: notes, has_more: hasMore }: Response = await joplin.data.get(
       ["search"],
-      { query, page, fields }
+      { query: searchString, page, fields }
     );
-
-    const filteredNotes = notebookIds
-      ? notes.filter(({ parent_id }) =>
-          (notebookIds as string[]).includes(parent_id)
-        )
-      : notes;
 
     for (const {
       id,
@@ -74,7 +71,7 @@ export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
       parent_id,
       is_todo,
       todo_completed,
-    } of filteredNotes) {
+    } of notes) {
       const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
         ({ title }: { title: string }) => title
       );
@@ -92,7 +89,8 @@ export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
     else page++;
   }
 
-  return result;
+  const filteredResult = result.filter(predicate)
+  return filteredResult;
 }
 
 export async function executeUpdateQuery(updateQuery: UpdateQuery) {
@@ -138,4 +136,20 @@ export async function resolveNotebookPath(
   } while (parts.length);
 
   return parentId;
+}
+
+export async function findAllChildrenNotebook(parentId: string): Promise<string[]> {
+  const { items: foldersData } = await joplin.data.get(["folders"]);
+
+  const children: string[] = [];
+  const recurse = (id: string) => {
+    const newChildren = foldersData.filter(
+      ({ parent_id }: { parent_id: string }) => parent_id === id
+    ).map(({ id }: { id: string }) => id);
+    newChildren.forEach((id: string) => recurse(id))
+    children.concat(newChildren)
+  }
+
+  recurse(parentId);
+  return children;
 }

@@ -7,6 +7,7 @@ import {
   SearchQuery,
   UpdateQuery,
 } from "./noteData";
+import { createFilter, SearchFilter } from "./noteData"
 import type { Action } from "./actions";
 
 export interface Config {
@@ -50,14 +51,12 @@ const parseConfigNote = (boardNoteBody: string): Config | null | {} => {
   return configObj;
 };
 
-const createQueryFromRules = (rules: Rule[], negate: boolean) =>
-  rules
-    .map(({ searchQueries }) =>
-      searchQueries.map((s: string) => (negate ? `-${s}` : s)).join(" ")
-    )
-    .join("	");
+const negateRule = (rule: Rule): Rule => ({
+  ...rule,
+  searchFilters: rule.searchFilters.map((f) => ({ ...f, negated: true }))
+})
 
-export default async function ({
+export default async function({
   id: configNoteId,
   title: boardName,
   body: configBody,
@@ -74,14 +73,14 @@ export default async function ({
       : await resolveNotebookPath(rootNotebookPath);
   if (!rootNotebookId) return null;
 
-  let filterQuery: string = "";
+  let baseFilters: SearchFilter[] = [];
   for (const key in configObj.filters) {
     if (key === "rootNotebookPath") {
-      filterQuery += ` notebookid:${rootNotebookId}`;
+      baseFilters.push(createFilter("notebookid", rootNotebookId))
     } else if (key in rules) {
       const val = configObj.filters[key];
       const rule = await rules[key](val, configObj);
-      filterQuery += " " + createQueryFromRules([rule], false);
+      baseFilters = baseFilters.concat(rule.searchFilters)
     }
   }
 
@@ -107,21 +106,19 @@ export default async function ({
 
   const columnQueries: Board["columnQueries"] = [];
   columns.forEach((col) => {
-    let query = filterQuery + " ";
+    let filters = [...baseFilters];
     if (!col.backlog) {
-      query += createQueryFromRules(col.rules, false);
+      filters = filters.concat(col.rules.flatMap(r => r.searchFilters))
     } else {
       const allOtherCols = columns.filter((c: Column) => c !== col);
-      query += allOtherCols
-        .map((c: Column) => createQueryFromRules(c.rules, true))
-        .join(" ");
+      filters = filters.concat(allOtherCols.flatMap(c => c.rules.flatMap(r => negateRule(r).searchFilters)))
     }
 
     columnQueries.push({
       colName: col.name,
       query: {
         type: "search",
-        query,
+        filters,
       },
     });
   });
@@ -153,7 +150,7 @@ export default async function ({
 
     allNotesQuery: {
       type: "search",
-      query: filterQuery,
+      filters: baseFilters,
     },
   };
 
