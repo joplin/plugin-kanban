@@ -1,8 +1,8 @@
 import { Config } from "./board";
-import { getTagId, UpdateQuery, SearchFilter, createFilter, resolveNotebookPath } from "./noteData";
+import { getTagId, UpdateQuery, NoteData, resolveNotebookPath, findAllChildrenNotebook } from "./noteData";
 
 export interface Rule {
-  searchFilters: SearchFilter[];
+  filterNote: (note: NoteData) => boolean
   set(noteId: string): UpdateQuery[];
   unset(noteId: string): UpdateQuery[];
 }
@@ -15,11 +15,11 @@ export type RuleFactory = (
 type Rules = { [ruleName: string]: RuleFactory };
 
 const rules: Rules = {
-  async tag(tagName: string | string[]) {
-    if (Array.isArray(tagName)) tagName = tagName[0];
+  async tag(arg: string | string[]) {
+    const tagName = Array.isArray(arg) ? arg[0] : arg;
     const tagID = await getTagId(tagName);
     return {
-      searchFilters: [createFilter("tag", tagName)],
+      filterNote: (note: NoteData) => note.tags.includes(tagName),
       set: (noteId: string) => [
         {
           type: "post",
@@ -42,7 +42,7 @@ const rules: Rules = {
       tagNames.map((t) => rules.tag(t, config))
     );
     return {
-      searchFilters: tagRules.flatMap(({ searchFilters }) => searchFilters),
+      filterNote: (note: NoteData) => tagRules.some(({ filterNote }) => filterNote(note)),
       set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
       unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
     };
@@ -54,8 +54,11 @@ const rules: Rules = {
       path,
       config.filters.rootNotebookPath
     ) as string;
+
+    const childrenNotebookIds = await findAllChildrenNotebook(notebookId);
+    const notebookIdsToSearch = [notebookId, ...childrenNotebookIds];
     return {
-      searchFilters: [createFilter("notebookid", notebookId)],
+      filterNote: (note: NoteData) => notebookIdsToSearch.includes(note.notebookId),
       set: (noteId: string) => [
         {
           type: "put",
@@ -73,13 +76,13 @@ const rules: Rules = {
     if (Array.isArray(val)) val = val[0];
     const shouldBeCompeted = val.toLowerCase() === "true";
     return {
-      searchFilters: [createFilter("iscompleted", `${shouldBeCompeted ? 1 : 0}`)],
+      filterNote: (note: NoteData) => note.isTodo && note.isCompleted === shouldBeCompeted,
       set: (noteId: string) => [
         {
           type: "put",
           path: ["notes", noteId],
           body: {
-            completed: shouldBeCompeted ? Date.now() : 0,
+            todo_completed: shouldBeCompeted ? Date.now() : 0,
           },
         },
       ],
@@ -88,7 +91,7 @@ const rules: Rules = {
           type: "put",
           path: ["notes", noteId],
           body: {
-            completed: 0,
+            todo_completed: 0,
           },
         },
       ],

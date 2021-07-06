@@ -1,21 +1,9 @@
 import joplin from "api";
-import createCustomFilters from './customSearchFilters'
 
 export interface UpdateQuery {
   type: "post" | "delete" | "put";
   path: string[];
   body?: object;
-}
-
-export interface SearchFilter {
-  name: string;
-  criteria: string;
-  negated: boolean;
-}
-
-export interface SearchQuery {
-  type: "search";
-  filters: SearchFilter[];
 }
 
 export interface ConfigNote {
@@ -34,15 +22,8 @@ export interface NoteData {
   isCompleted: boolean;
 }
 
-export const createFilter = (name: string, criteria: string, negated = false): SearchFilter => ({
-  name, criteria, negated
-})
-
-export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
+async function search(query: string): Promise<NoteData[]> {
   const fields = ["id", "title", "parent_id", "is_todo", "todo_completed"];
-  let { filters } = apiQuery;
-
-  const [searchString, predicate] = await createCustomFilters(filters)
 
   type RawNote = {
     id: string;
@@ -62,7 +43,7 @@ export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
   while (true) {
     const { items: notes, has_more: hasMore }: Response = await joplin.data.get(
       ["search"],
-      { query: searchString, page, fields }
+      { query, page, fields }
     );
 
     for (const {
@@ -89,8 +70,17 @@ export async function searchNotes(apiQuery: SearchQuery): Promise<NoteData[]> {
     else page++;
   }
 
-  const filteredResult = result.filter(predicate)
-  return filteredResult;
+  return result;
+}
+
+export async function searchNotes(rootNotebookName: string): Promise<NoteData[]> {
+  const query = `notebook:${rootNotebookName}`
+  return search(query);
+}
+
+export async function getNoteById(id: string): Promise<NoteData> {
+  const query = `id:${id}`
+  return (await search(query))[0];
 }
 
 export async function executeUpdateQuery(updateQuery: UpdateQuery) {
@@ -112,11 +102,12 @@ export async function resolveNotebookPath(
   notebookPath: string,
   rootNotebookPath = "/"
 ): Promise<string | null> {
-  if (notebookPath.startsWith("/")) notebookPath = notebookPath.slice(1);
-  if (!rootNotebookPath.endsWith("/"))
-    rootNotebookPath = rootNotebookPath + "/";
-
-  notebookPath = rootNotebookPath + notebookPath;
+  if (notebookPath !== rootNotebookPath) {
+    if (notebookPath.startsWith("/")) notebookPath = notebookPath.slice(1);
+    if (!rootNotebookPath.endsWith("/"))
+      rootNotebookPath = rootNotebookPath + "/";
+    notebookPath = rootNotebookPath + notebookPath;
+  }
 
   const { items: foldersData } = await joplin.data.get(["folders"]);
   const parts = notebookPath.split("/");
@@ -152,4 +143,9 @@ export async function findAllChildrenNotebook(parentId: string): Promise<string[
 
   recurse(parentId);
   return children;
+}
+
+export async function getNotebookName(id: string): Promise<string> {
+  const { items } = await joplin.data.get(["search"], { "query": "test", "type": "folder" })
+  return items[0]?.title as string
 }

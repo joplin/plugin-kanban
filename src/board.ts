@@ -1,13 +1,12 @@
 import * as yaml from "js-yaml";
+import { getNotebookName, NoteData } from './noteData'
 
 import rules, { Rule } from "./rules";
 import {
   resolveNotebookPath,
   ConfigNote,
-  SearchQuery,
   UpdateQuery,
 } from "./noteData";
-import { createFilter, SearchFilter } from "./noteData"
 import type { Action } from "./actions";
 
 export interface Config {
@@ -25,17 +24,14 @@ export interface Config {
 interface Column {
   name: string;
   rules: Rule[];
-  backlog: boolean;
 }
 
 export interface Board {
   configNoteId: string;
   boardName: string;
-  allNotesQuery: SearchQuery;
-  columnQueries: {
-    colName: string;
-    query: SearchQuery;
-  }[];
+  columnNames: string[];
+  rootNotebookName: string;
+  sortNoteIntoColumn(note: NoteData): string | null;
   actionToQuery(action: Action): UpdateQuery[];
 }
 
@@ -50,11 +46,6 @@ const parseConfigNote = (boardNoteBody: string): Config | null | {} => {
   // TODO: return error messages on invalid configs
   return configObj;
 };
-
-const negateRule = (rule: Rule): Rule => ({
-  ...rule,
-  searchFilters: rule.searchFilters.map((f) => ({ ...f, negated: true }))
-})
 
 export default async function({
   id: configNoteId,
@@ -72,70 +63,71 @@ export default async function({
       ? boardNotebookId
       : await resolveNotebookPath(rootNotebookPath);
   if (!rootNotebookId) return null;
+  const rootNotebookName = await getNotebookName(rootNotebookId);
 
-  let baseFilters: SearchFilter[] = [];
+  const baseFilters: Rule["filterNote"][] = [];
   for (const key in configObj.filters) {
-    if (key === "rootNotebookPath") {
-      baseFilters.push(createFilter("notebookid", rootNotebookId))
-    } else if (key in rules) {
-      const val = configObj.filters[key];
+    const val = configObj.filters[key];
+    if (key in rules) {
       const rule = await rules[key](val, configObj);
-      baseFilters = baseFilters.concat(rule.searchFilters)
+      baseFilters.push(rule.filterNote)
+    } else if (key === 'rootNotebookPath') {
+      const rule = await rules.notebookPath(val, configObj);
+      baseFilters.push(rule.filterNote)
     }
   }
 
-  const columns: Column[] = [];
+  let backlogCol: Column | undefined;
+  const regularColumns: Column[] = [];
+  const allColumns: Column[] = [];
   for (const col of configObj.columns) {
     const newCol: Column = {
       name: col.name,
-      backlog: col.backlog === true,
       rules: [],
     };
+    allColumns.push(newCol);
 
-    for (const key in col) {
-      let val = col[key];
-      if (typeof val === "boolean") val = `${val}`;
-      if (val && key in rules) {
-        const rule = await rules[key](val, configObj);
-        newCol.rules.push(rule);
+    if (col.backlog) {
+      backlogCol = newCol;
+    } else {
+      for (const key in col) {
+        let val = col[key];
+        if (typeof val === "boolean") val = `${val}`;
+        if (val && key in rules) {
+          const rule = await rules[key](val, configObj);
+          newCol.rules.push(rule);
+        }
       }
+      regularColumns.push(newCol);
     }
-
-    columns.push(newCol);
   }
 
-  const columnQueries: Board["columnQueries"] = [];
-  columns.forEach((col) => {
-    let filters = [...baseFilters];
-    if (!col.backlog) {
-      filters = filters.concat(col.rules.flatMap(r => r.searchFilters))
-    } else {
-      const allOtherCols = columns.filter((c: Column) => c !== col);
-      filters = filters.concat(allOtherCols.flatMap(c => c.rules.flatMap(r => negateRule(r).searchFilters)))
-    }
-
-    columnQueries.push({
-      colName: col.name,
-      query: {
-        type: "search",
-        filters,
-      },
-    });
-  });
 
   const board: Board = {
     configNoteId,
     boardName,
-    columnQueries,
+    rootNotebookName,
+    columnNames: configObj.columns.map(({ name }) => name),
+
+    sortNoteIntoColumn(note: NoteData) {
+      const matchesBaseFilters = baseFilters.every(f => f(note))
+      if (matchesBaseFilters) {
+        const foundCol = regularColumns.find(({ rules }) => rules.some(({ filterNote }) => filterNote(note)))
+        if (foundCol) return foundCol.name
+        if (backlogCol) return backlogCol.name
+      }
+
+      return null;
+    },
 
     actionToQuery(action: Action) {
       switch (action.type) {
         case "moveNote":
           const { noteId, newColumnName, oldColumnName } = action.payload;
-          const newCol = columns.find(
+          const newCol = allColumns.find(
             ({ name }) => name === newColumnName
           ) as Column;
-          const oldCol = columns.find(
+          const oldCol = allColumns.find(
             ({ name }) => name === oldColumnName
           ) as Column;
 
@@ -146,11 +138,6 @@ export default async function({
         default:
           throw new Error("Unknown action " + action.type);
       }
-    },
-
-    allNotesQuery: {
-      type: "search",
-      filters: baseFilters,
     },
   };
 
