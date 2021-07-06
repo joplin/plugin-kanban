@@ -8,6 +8,12 @@ import type { BoardState } from "./gui/hooks";
 let openBoard: Board | undefined;
 let view: string | undefined;
 
+async function showError(err: string) {
+  if (!view) view = await joplin.views.panels.create("kanban");
+  await joplin.views.panels.setHtml(view, err);
+  await joplin.views.panels.show(view);
+}
+
 async function showBoard() {
   if (!view) {
     view = await joplin.views.panels.create("kanban");
@@ -59,10 +65,14 @@ async function handleNewlyOpenedNote(newNoteId: string) {
 
   if (!openBoard || (openBoard as Board).configNoteId !== newNoteId) {
     const note = await getConfigNote(newNoteId);
-    const board = await createBoard(note);
-    if (board) {
-      openBoard = board;
-      showBoard();
+    try {
+      const board = await createBoard(note);
+      if (board) {
+        openBoard = board;
+        showBoard();
+      }
+    } catch (e) {
+      if (e.message) showError(e.message)
     }
   }
 }
