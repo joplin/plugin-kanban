@@ -1,19 +1,15 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { render } from 'react-dom'
 import styled from 'styled-components'
-import { DragDropContext, OnDragEndResponder, OnDragStartResponder } from 'react-beautiful-dnd'
+import { DragDropContext, OnDragEndResponder } from 'react-beautiful-dnd'
 
 import { useRemoteBoard, useTempBoard } from './hooks'
 import Column from './Column'
 
 function App() {
   const [board, waitingForUpdate, dispatch] = useRemoteBoard();
-  const [currentDragSource, setDragSource] = useState<string | null>(null);
   const [tempBoard, tempMoveNote] = useTempBoard(board);
 
-  const onDragStart: OnDragStartResponder = (start) => {
-    setDragSource(start.source.droppableId)
-  }
   const onDragEnd: OnDragEndResponder = (drop) => {
     if (!drop.destination || !board) return
 
@@ -29,7 +25,6 @@ function App() {
       <Header>{board.name}</Header>
       <ColumnsCont>
         <DragDropContext
-          onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         >
           {board.columns.map(({ name, notes }) => {
@@ -39,7 +34,6 @@ function App() {
               key={name}
               name={name}
               notes={waitingForUpdate && tempCol ? tempCol.notes : notes}
-              draggedFromHere={name === currentDragSource}
             />
           }
           )}
