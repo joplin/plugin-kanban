@@ -55,19 +55,22 @@ const Container = styled("div")({
   display: "flex",
   flexDirection: "column",
   alignItems: "stretch",
-  width: "100%",
+  minWidth: "100%",
   height: "100%"
 })
 
 const Header = styled("div")({
   height: "50px",
   fontSize: "28px",
-  paddingLeft: "10px"
+  padding: "10px",
+  paddingLeft: "20px",
+  marginBottom: "10px"
 })
 
 const ColumnsCont = styled("div")({
   display: "flex",
   alignItems: "stretch",
-  flexGrow: 1
+  flexGrow: 1,
+  overflowY: "auto"
 })
 

@@ -22,11 +22,11 @@ export default function({ note, index }: { note: NoteData, index: number; }) {
 }
 
 const Card = styled.div({
-  height: "50px",
-  padding: "10px",
-  fontSize: "16px",
+  maxHeight: "50px",
+  padding: "15px",
+  fontSize: "20px",
   borderRadius: "5px",
-  border: "1px #DDDDDD solid",
+  border: "2px #DDDDDD solid",
   "& + &": {
     marginTop: "20px"
   }

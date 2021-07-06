@@ -24,10 +24,11 @@ export default function({ name, notes, draggedFromHere }: { name: string; notes:
 }
 
 const Column = styled("div")({
+  flexGrow: 1,
   display: "flex",
   flexDirection: "column",
   alignItems: "stretch",
-  width: "200px",
+  minWidth: "200px",
   padding: "0 20px",
   "& + &": {
     borderLeft: "1px #DDDDDD solid"
