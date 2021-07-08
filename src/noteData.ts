@@ -145,7 +145,7 @@ export async function findAllChildrenNotebook(parentId: string): Promise<string[
   return children;
 }
 
-export async function getNotebookName(id: string): Promise<string> {
-  const { items } = await joplin.data.get(["search"], { "query": "test", "type": "folder" })
+export async function getNotebookName(name: string): Promise<string> {
+  const { items } = await joplin.data.get(["search"], { "query": name, "type": "folder" })
   return items[0]?.title as string
 }
