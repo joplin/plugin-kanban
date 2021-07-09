@@ -145,7 +145,31 @@ export async function findAllChildrenNotebook(parentId: string): Promise<string[
   return children;
 }
 
-export async function getNotebookName(name: string): Promise<string> {
-  const { items } = await joplin.data.get(["search"], { "query": name, "type": "folder" })
-  return items[0]?.title as string
+export async function getNotebookPath(searchId: string): Promise<string> {
+  type Folder = {
+    id: string;
+    title: string;
+    parent_id: string;
+  }
+
+  const { items: foldersData }: { items: Folder[] } = await joplin.data.get(["folders"]);
+
+  const recurse = (parentId: string, currentPath: string): string | null => {
+    const children = foldersData.filter(
+      ({ parent_id }) => parent_id === parentId
+    )
+    if (children.length === 0) return null
+
+    const match = children.find(({ id }) => id === searchId)
+    if (match) return currentPath + "/" + match.title;
+
+    for (const child of children) {
+      const res = recurse(child.id, currentPath + "/" + child.title)
+      if (res) return res
+    }
+
+    return null
+  }
+
+  return recurse("", "/") as string;
 }

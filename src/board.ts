@@ -1,9 +1,8 @@
 import * as yaml from "js-yaml";
-import { getNotebookName, NoteData } from './noteData'
+import { getNotebookPath, NoteData } from './noteData'
 
 import rules, { Rule } from "./rules";
 import {
-  resolveNotebookPath,
   ConfigNote,
   UpdateQuery,
 } from "./noteData";
@@ -54,16 +53,14 @@ export default async function({
   parent_id: boardNotebookId,
 }: ConfigNote): Promise<Board | null> {
   const configObj = parseConfigNote(configBody);
-  if (!configObj || !("filters" in configObj) || !("columns" in configObj))
+  if (!configObj || !("columns" in configObj))
     return null;
 
-  const { rootNotebookPath = "." } = configObj.filters;
-  const rootNotebookId =
-    rootNotebookPath === "."
-      ? boardNotebookId
-      : await resolveNotebookPath(rootNotebookPath);
-  if (!rootNotebookId) return null;
-  const rootNotebookName = await getNotebookName(rootNotebookId);
+  if (!configObj.filters)
+    configObj.filters = { rootNotebookPath: await getNotebookPath(boardNotebookId) };
+
+  const { rootNotebookPath } = configObj.filters;
+  const rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
   const baseFilters: Rule["filterNote"][] = [];
   for (const key in configObj.filters) {
