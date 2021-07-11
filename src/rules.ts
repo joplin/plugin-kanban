@@ -60,17 +60,19 @@ const rules: Rules = {
   async notebookPath(path: string | string[], config: Config) {
     if (Array.isArray(path)) path = path[0];
 
-    let { filters: { rootNotebookPath } } = config
+    let {
+      filters: { rootNotebookPath },
+    } = config;
     if (path.startsWith("/")) path = path.slice(1);
-    if (rootNotebookPath.startsWith("/")) rootNotebookPath = rootNotebookPath.slice(1);
+    if (rootNotebookPath.startsWith("/"))
+      rootNotebookPath = rootNotebookPath.slice(1);
     if (!rootNotebookPath.endsWith("/"))
       rootNotebookPath = rootNotebookPath + "/";
     path = rootNotebookPath + path;
 
-    const rootNotebookId = await resolveNotebookPath(rootNotebookPath)
+    const rootNotebookId = await resolveNotebookPath(rootNotebookPath);
     const notebookId =
-      (await resolveNotebookPath(path)) ||
-      (await createNotebook(path));
+      (await resolveNotebookPath(path)) || (await createNotebook(path));
 
     const childrenNotebookIds = await findAllChildrenNotebook(notebookId);
     const notebookIdsToSearch = [notebookId, ...childrenNotebookIds];
@@ -94,7 +96,7 @@ const rules: Rules = {
           body: {
             parent_id: rootNotebookId,
           },
-        }
+        },
       ],
     };
   },

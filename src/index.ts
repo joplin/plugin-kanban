@@ -13,6 +13,7 @@ import type { BoardState } from "./gui/hooks";
 
 let openBoard: Board | undefined;
 let view: string | undefined;
+let pollCb: () => void | undefined;
 
 async function showError(err: string) {
   if (!view) view = await joplin.views.panels.create("kanban");
@@ -28,9 +29,11 @@ async function showBoard() {
     await joplin.views.panels.addScript(view, "gui/index.js");
     joplin.views.panels.onMessage(view, async (msg: Action) => {
       if (!openBoard) return;
-      if (msg.type !== "load") {
+      if (msg.type === "poll") {
+        await new Promise((res) => (pollCb = res));
+      } else if (msg.type !== "load") {
         for (const query of openBoard.actionToQuery(msg)) {
-          await executeUpdateQuery(query)
+          await executeUpdateQuery(query);
         }
       }
       return { name: openBoard.boardName, columns: await getSortedNotes() };
@@ -61,13 +64,16 @@ async function getSortedNotes() {
   return sortedColumns;
 }
 
+async function isNoteIdOnBoard(id: string): Promise<boolean> {
+  if (!openBoard) return false;
+  const note = await getNoteById(id);
+  return openBoard.sortNoteIntoColumn(note) !== null;
+}
+
 async function handleNewlyOpenedNote(newNoteId: string) {
   if (openBoard) {
     if (openBoard.configNoteId === newNoteId) return;
-
-    const note = await getNoteById(newNoteId);
-    const containsOpenedNote = openBoard.sortNoteIntoColumn(note) !== null;
-    if (containsOpenedNote) return;
+    if (await isNoteIdOnBoard(newNoteId)) return;
     else {
       hideBoard();
       openBoard = undefined;
@@ -93,8 +99,31 @@ joplin.plugins.register({
     joplin.workspace.onNoteSelectionChange(
       ({ value }: { value: [string?] }) => {
         const newNoteId = value?.[0];
+        if (pollCb) pollCb();
         if (newNoteId) handleNewlyOpenedNote(newNoteId);
       }
     );
+
+    joplin.workspace.onNoteChange(async ({ id }) => {
+      console.log(
+        "onNoteChange",
+        id,
+        "open board note id",
+        openBoard?.configNoteId
+      );
+      if (!openBoard) return;
+      if (openBoard.configNoteId === id && pollCb) {
+        const note = await getConfigNote(id);
+        const board = await createBoard(note);
+        if (board) {
+          openBoard = board;
+          if (pollCb) pollCb();
+        } else {
+          hideBoard();
+        }
+      } else if (await isNoteIdOnBoard(id)) {
+        if (pollCb) pollCb();
+      }
+    });
   },
 });

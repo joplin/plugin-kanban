@@ -30,8 +30,24 @@ export function useRemoteBoard(): [
     });
   };
 
+  const shouldPoll = useRef(true);
+  const poll = () => {
+    webviewApi.postMessage({ type: "poll" }).then((newBoard: BoardState) => {
+      console.log(
+        "POLL ANSWER",
+        shouldPoll.current ? "resending poll" : "polling disabled"
+      );
+      setState({ board: newBoard, waitingForUpdate: false });
+      if (shouldPoll.current === true) poll();
+    });
+  };
+
   useEffect(() => {
     dispatch({ type: "load" });
+    poll();
+    return () => {
+      shouldPoll.current = false;
+    };
   }, []);
 
   return [state.board, state.waitingForUpdate, dispatch];

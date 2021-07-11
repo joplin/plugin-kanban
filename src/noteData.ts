@@ -119,7 +119,7 @@ export async function createNotebook(notebookPath: string): Promise<string> {
 }
 
 export async function resolveNotebookPath(
-  notebookPath: string,
+  notebookPath: string
 ): Promise<string | null> {
   const { items: foldersData } = await joplin.data.get(["folders"]);
   const parts = notebookPath.split("/");

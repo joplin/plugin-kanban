@@ -11,4 +11,8 @@ export interface LoadAction {
   type: "load";
 }
 
-export type Action = MoveNoteAction | LoadAction;
+export interface PollAction {
+  type: "poll";
+}
+
+export type Action = MoveNoteAction | LoadAction | PollAction;
