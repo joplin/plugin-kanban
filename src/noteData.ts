@@ -100,8 +100,6 @@ export async function createTag(tagName: string): Promise<string> {
 }
 
 export async function createNotebook(notebookPath: string): Promise<string> {
-  if (notebookPath.startsWith("/")) notebookPath = notebookPath.slice(1);
-
   const parts = notebookPath.split("/");
   let parentId = "";
   for (let i = 0; i < parts.length; i++) {
@@ -122,15 +120,7 @@ export async function createNotebook(notebookPath: string): Promise<string> {
 
 export async function resolveNotebookPath(
   notebookPath: string,
-  rootNotebookPath = "/"
 ): Promise<string | null> {
-  if (notebookPath !== rootNotebookPath) {
-    if (notebookPath.startsWith("/")) notebookPath = notebookPath.slice(1);
-    if (!rootNotebookPath.endsWith("/"))
-      rootNotebookPath = rootNotebookPath + "/";
-    notebookPath = rootNotebookPath + notebookPath;
-  }
-
   const { items: foldersData } = await joplin.data.get(["folders"]);
   const parts = notebookPath.split("/");
 
@@ -156,13 +146,13 @@ export async function findAllChildrenNotebook(
 ): Promise<string[]> {
   const { items: foldersData } = await joplin.data.get(["folders"]);
 
-  const children: string[] = [];
+  let children: string[] = [];
   const recurse = (id: string) => {
     const newChildren = foldersData
       .filter(({ parent_id }: { parent_id: string }) => parent_id === id)
       .map(({ id }: { id: string }) => id);
     newChildren.forEach((id: string) => recurse(id));
-    children.concat(newChildren);
+    children = [...children, ...newChildren];
   };
 
   recurse(parentId);
@@ -197,5 +187,5 @@ export async function getNotebookPath(searchId: string): Promise<string> {
     return null;
   };
 
-  return recurse("", "/") as string;
+  return recurse("", "") as string;
 }

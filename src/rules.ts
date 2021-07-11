@@ -59,12 +59,28 @@ const rules: Rules = {
 
   async notebookPath(path: string | string[], config: Config) {
     if (Array.isArray(path)) path = path[0];
+
+    let { filters: { rootNotebookPath } } = config
+    if (path.startsWith("/")) path = path.slice(1);
+    if (rootNotebookPath.startsWith("/")) rootNotebookPath = rootNotebookPath.slice(1);
+    if (!rootNotebookPath.endsWith("/"))
+      rootNotebookPath = rootNotebookPath + "/";
+    path = rootNotebookPath + path;
+
     const notebookId =
-      (await resolveNotebookPath(path, config.filters.rootNotebookPath)) ||
+      (await resolveNotebookPath(path)) ||
       (await createNotebook(path));
 
     const childrenNotebookIds = await findAllChildrenNotebook(notebookId);
     const notebookIdsToSearch = [notebookId, ...childrenNotebookIds];
+
+    console.log(
+      "notebookpath rule",
+      path,
+      "\n notebookIdsToSearch",
+      notebookIdsToSearch
+    );
+
     return {
       filterNote: (note: NoteData) =>
         notebookIdsToSearch.includes(note.notebookId),

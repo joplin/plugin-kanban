@@ -70,7 +70,10 @@ export default async function ({
       const rule = await rules[key](val, configObj);
       baseFilters.push(rule.filterNote);
     } else if (key === "rootNotebookPath") {
-      const rule = await rules.notebookPath(rootNotebookPath, configObj);
+      const rule = await rules.notebookPath(rootNotebookPath, {
+        ...configObj,
+        filters: { ...configObj.filters, rootNotebookPath: "/" },
+      });
       baseFilters.push(rule.filterNote);
     }
   }
