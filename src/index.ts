@@ -28,8 +28,11 @@ async function showBoard() {
     await joplin.views.panels.addScript(view, "gui/index.js");
     joplin.views.panels.onMessage(view, async (msg: Action) => {
       if (!openBoard) return;
-      if (msg.type !== "load")
-        await Promise.all(openBoard.actionToQuery(msg).map(executeUpdateQuery));
+      if (msg.type !== "load") {
+        for (const query of openBoard.actionToQuery(msg)) {
+          await executeUpdateQuery(query)
+        }
+      }
       return { name: openBoard.boardName, columns: await getSortedNotes() };
     });
   } else {
