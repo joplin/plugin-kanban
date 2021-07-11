@@ -1,11 +1,8 @@
 import * as yaml from "js-yaml";
-import { getNotebookPath, NoteData } from './noteData'
+import { getNotebookPath, NoteData } from "./noteData";
 
 import rules, { Rule } from "./rules";
-import {
-  ConfigNote,
-  UpdateQuery,
-} from "./noteData";
+import { ConfigNote, UpdateQuery } from "./noteData";
 import type { Action } from "./actions";
 
 export interface Config {
@@ -46,34 +43,35 @@ const parseConfigNote = (boardNoteBody: string): Config | null | {} => {
   return configObj;
 };
 
-export default async function({
+export default async function ({
   id: configNoteId,
   title: boardName,
   body: configBody,
   parent_id: boardNotebookId,
 }: ConfigNote): Promise<Board | null> {
   const configObj = parseConfigNote(configBody);
-  if (!configObj || !("columns" in configObj))
-    return null;
+  if (!configObj || !("columns" in configObj)) return null;
 
   if (!configObj.filters)
-    configObj.filters = { rootNotebookPath: await getNotebookPath(boardNotebookId) };
+    configObj.filters = {
+      rootNotebookPath: await getNotebookPath(boardNotebookId),
+    };
 
   const { rootNotebookPath } = configObj.filters;
   const rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
   const baseFilters: Rule["filterNote"][] = [
-    (await rules.excludeNoteId(configNoteId, configObj)).filterNote
+    (await rules.excludeNoteId(configNoteId, configObj)).filterNote,
   ];
 
   for (const key in configObj.filters) {
     const val = configObj.filters[key];
     if (key in rules) {
       const rule = await rules[key](val, configObj);
-      baseFilters.push(rule.filterNote)
-    } else if (key === 'rootNotebookPath') {
+      baseFilters.push(rule.filterNote);
+    } else if (key === "rootNotebookPath") {
       const rule = await rules.notebookPath(rootNotebookPath, configObj);
-      baseFilters.push(rule.filterNote)
+      baseFilters.push(rule.filterNote);
     }
   }
 
@@ -102,7 +100,6 @@ export default async function({
     }
   }
 
-
   const board: Board = {
     configNoteId,
     boardName,
@@ -110,11 +107,13 @@ export default async function({
     columnNames: configObj.columns.map(({ name }) => name),
 
     sortNoteIntoColumn(note: NoteData) {
-      const matchesBaseFilters = baseFilters.every(f => f(note))
+      const matchesBaseFilters = baseFilters.every((f) => f(note));
       if (matchesBaseFilters) {
-        const foundCol = regularColumns.find(({ rules }) => rules.some(({ filterNote }) => filterNote(note)))
-        if (foundCol) return foundCol.name
-        if (backlogCol) return backlogCol.name
+        const foundCol = regularColumns.find(({ rules }) =>
+          rules.some(({ filterNote }) => filterNote(note))
+        );
+        if (foundCol) return foundCol.name;
+        if (backlogCol) return backlogCol.name;
       }
 
       return null;

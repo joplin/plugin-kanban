@@ -1,4 +1,8 @@
-body, html, body > div, #joplin-plugin-content, #root {
+body,
+html,
+body > div,
+#joplin-plugin-content,
+#root {
   padding: 0;
   margin: 0;
   width: 100%;
