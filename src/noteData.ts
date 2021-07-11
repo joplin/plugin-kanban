@@ -70,7 +70,7 @@ async function search(query: string): Promise<NoteData[]> {
 export async function searchNotes(
   rootNotebookName: string
 ): Promise<NoteData[]> {
-  const query = `notebook:${rootNotebookName}`;
+  const query = `notebook:"${rootNotebookName}"`;
   return search(query);
 }
 
