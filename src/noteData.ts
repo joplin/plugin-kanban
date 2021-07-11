@@ -46,13 +46,7 @@ async function search(query: string): Promise<NoteData[]> {
       { query, page, fields }
     );
 
-    for (const {
-      id,
-      title,
-      parent_id,
-      is_todo,
-      todo_completed,
-    } of notes) {
+    for (const { id, title, parent_id, is_todo, todo_completed } of notes) {
       const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
         ({ title }: { title: string }) => title
       );
@@ -73,13 +67,15 @@ async function search(query: string): Promise<NoteData[]> {
   return result;
 }
 
-export async function searchNotes(rootNotebookName: string): Promise<NoteData[]> {
-  const query = `notebook:${rootNotebookName}`
+export async function searchNotes(
+  rootNotebookName: string
+): Promise<NoteData[]> {
+  const query = `notebook:${rootNotebookName}`;
   return search(query);
 }
 
 export async function getNoteById(id: string): Promise<NoteData> {
-  const query = `id:${id}`
+  const query = `id:${id}`;
   return (await search(query))[0];
 }
 
@@ -96,6 +92,32 @@ export function getConfigNote(noteId: string): Promise<ConfigNote> {
 export async function getTagId(tagName: string): Promise<string> {
   const { items: allTags } = await joplin.data.get(["tags"]);
   return allTags.find(({ title }: { title: string }) => title === tagName)?.id;
+}
+
+export async function createTag(tagName: string): Promise<string> {
+  const result = await joplin.data.post(["tags"], null, { title: tagName });
+  return result.id;
+}
+
+export async function createNotebook(notebookPath: string): Promise<string> {
+  if (notebookPath.startsWith("/")) notebookPath = notebookPath.slice(1);
+
+  const parts = notebookPath.split("/");
+  let parentId = "";
+  for (let i = 0; i < parts.length; i++) {
+    const currentPath = "/" + parts.slice(0, i + 1);
+    const id =
+      (await resolveNotebookPath(currentPath)) ||
+      (
+        await joplin.data.post(["folders"], null, {
+          title: parts[i],
+          parent_id: parentId,
+        })
+      ).id;
+    parentId = id;
+  }
+
+  return parentId;
 }
 
 export async function resolveNotebookPath(
@@ -129,17 +151,19 @@ export async function resolveNotebookPath(
   return parentId;
 }
 
-export async function findAllChildrenNotebook(parentId: string): Promise<string[]> {
+export async function findAllChildrenNotebook(
+  parentId: string
+): Promise<string[]> {
   const { items: foldersData } = await joplin.data.get(["folders"]);
 
   const children: string[] = [];
   const recurse = (id: string) => {
-    const newChildren = foldersData.filter(
-      ({ parent_id }: { parent_id: string }) => parent_id === id
-    ).map(({ id }: { id: string }) => id);
-    newChildren.forEach((id: string) => recurse(id))
-    children.concat(newChildren)
-  }
+    const newChildren = foldersData
+      .filter(({ parent_id }: { parent_id: string }) => parent_id === id)
+      .map(({ id }: { id: string }) => id);
+    newChildren.forEach((id: string) => recurse(id));
+    children.concat(newChildren);
+  };
 
   recurse(parentId);
   return children;
@@ -150,26 +174,28 @@ export async function getNotebookPath(searchId: string): Promise<string> {
     id: string;
     title: string;
     parent_id: string;
-  }
+  };
 
-  const { items: foldersData }: { items: Folder[] } = await joplin.data.get(["folders"]);
+  const { items: foldersData }: { items: Folder[] } = await joplin.data.get([
+    "folders",
+  ]);
 
   const recurse = (parentId: string, currentPath: string): string | null => {
     const children = foldersData.filter(
       ({ parent_id }) => parent_id === parentId
-    )
-    if (children.length === 0) return null
+    );
+    if (children.length === 0) return null;
 
-    const match = children.find(({ id }) => id === searchId)
+    const match = children.find(({ id }) => id === searchId);
     if (match) return currentPath + "/" + match.title;
 
     for (const child of children) {
-      const res = recurse(child.id, currentPath + "/" + child.title)
-      if (res) return res
+      const res = recurse(child.id, currentPath + "/" + child.title);
+      if (res) return res;
     }
 
-    return null
-  }
+    return null;
+  };
 
   return recurse("", "/") as string;
 }

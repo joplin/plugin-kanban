@@ -1,8 +1,16 @@
 import { Config } from "./board";
-import { getTagId, UpdateQuery, NoteData, resolveNotebookPath, findAllChildrenNotebook } from "./noteData";
+import {
+  getTagId,
+  UpdateQuery,
+  NoteData,
+  resolveNotebookPath,
+  findAllChildrenNotebook,
+  createTag,
+  createNotebook,
+} from "./noteData";
 
 export interface Rule {
-  filterNote: (note: NoteData) => boolean
+  filterNote: (note: NoteData) => boolean;
   set(noteId: string): UpdateQuery[];
   unset(noteId: string): UpdateQuery[];
 }
@@ -17,7 +25,7 @@ type Rules = { [ruleName: string]: RuleFactory };
 const rules: Rules = {
   async tag(arg: string | string[]) {
     const tagName = Array.isArray(arg) ? arg[0] : arg;
-    const tagID = await getTagId(tagName);
+    const tagID = (await getTagId(tagName)) || (await createTag(tagName));
     return {
       filterNote: (note: NoteData) => note.tags.includes(tagName),
       set: (noteId: string) => [
@@ -42,7 +50,8 @@ const rules: Rules = {
       tagNames.map((t) => rules.tag(t, config))
     );
     return {
-      filterNote: (note: NoteData) => tagRules.some(({ filterNote }) => filterNote(note)),
+      filterNote: (note: NoteData) =>
+        tagRules.some(({ filterNote }) => filterNote(note)),
       set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
       unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
     };
@@ -50,15 +59,15 @@ const rules: Rules = {
 
   async notebookPath(path: string | string[], config: Config) {
     if (Array.isArray(path)) path = path[0];
-    const notebookId = await resolveNotebookPath(
-      path,
-      config.filters.rootNotebookPath
-    ) as string;
+    const notebookId =
+      (await resolveNotebookPath(path, config.filters.rootNotebookPath)) ||
+      (await createNotebook(path));
 
     const childrenNotebookIds = await findAllChildrenNotebook(notebookId);
     const notebookIdsToSearch = [notebookId, ...childrenNotebookIds];
     return {
-      filterNote: (note: NoteData) => notebookIdsToSearch.includes(note.notebookId),
+      filterNote: (note: NoteData) =>
+        notebookIdsToSearch.includes(note.notebookId),
       set: (noteId: string) => [
         {
           type: "put",
@@ -76,7 +85,8 @@ const rules: Rules = {
     if (Array.isArray(val)) val = val[0];
     const shouldBeCompeted = val.toLowerCase() === "true";
     return {
-      filterNote: (note: NoteData) => note.isTodo && note.isCompleted === shouldBeCompeted,
+      filterNote: (note: NoteData) =>
+        note.isTodo && note.isCompleted === shouldBeCompeted,
       set: (noteId: string) => [
         {
           type: "put",
@@ -103,7 +113,7 @@ const rules: Rules = {
       filterNote: (note: NoteData) => note.id !== id,
       set: () => [],
       unset: () => [],
-    }
+    };
   },
 };
 
