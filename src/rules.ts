@@ -67,19 +67,13 @@ const rules: Rules = {
       rootNotebookPath = rootNotebookPath + "/";
     path = rootNotebookPath + path;
 
+    const rootNotebookId = await resolveNotebookPath(rootNotebookPath)
     const notebookId =
       (await resolveNotebookPath(path)) ||
       (await createNotebook(path));
 
     const childrenNotebookIds = await findAllChildrenNotebook(notebookId);
     const notebookIdsToSearch = [notebookId, ...childrenNotebookIds];
-
-    console.log(
-      "notebookpath rule",
-      path,
-      "\n notebookIdsToSearch",
-      notebookIdsToSearch
-    );
 
     return {
       filterNote: (note: NoteData) =>
@@ -93,7 +87,15 @@ const rules: Rules = {
           },
         },
       ],
-      unset: () => [],
+      unset: (noteId: string) => [
+        {
+          type: "put",
+          path: ["notes", noteId],
+          body: {
+            parent_id: rootNotebookId,
+          },
+        }
+      ],
     };
   },
 
