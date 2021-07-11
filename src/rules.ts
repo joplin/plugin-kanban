@@ -97,6 +97,14 @@ const rules: Rules = {
       ],
     };
   },
+
+  async excludeNoteId(id: string | string[]) {
+    return {
+      filterNote: (note: NoteData) => note.id !== id,
+      set: () => [],
+      unset: () => [],
+    }
+  },
 };
 
 export default rules;

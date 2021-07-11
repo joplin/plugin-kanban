@@ -62,14 +62,17 @@ export default async function({
   const { rootNotebookPath } = configObj.filters;
   const rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
-  const baseFilters: Rule["filterNote"][] = [];
+  const baseFilters: Rule["filterNote"][] = [
+    (await rules.excludeNoteId(configNoteId, configObj)).filterNote
+  ];
+
   for (const key in configObj.filters) {
     const val = configObj.filters[key];
     if (key in rules) {
       const rule = await rules[key](val, configObj);
       baseFilters.push(rule.filterNote)
     } else if (key === 'rootNotebookPath') {
-      const rule = await rules.notebookPath(val, configObj);
+      const rule = await rules.notebookPath(rootNotebookPath, configObj);
       baseFilters.push(rule.filterNote)
     }
   }
