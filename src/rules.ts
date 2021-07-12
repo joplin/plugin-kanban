@@ -64,11 +64,12 @@ const rules: Rules = {
       filters: { rootNotebookPath },
     } = config;
     if (path.startsWith("/")) path = path.slice(1);
+    if (path.endsWith("/")) path = path.slice(0, -1);
     if (rootNotebookPath.startsWith("/"))
       rootNotebookPath = rootNotebookPath.slice(1);
-    if (!rootNotebookPath.endsWith("/"))
-      rootNotebookPath = rootNotebookPath + "/";
-    path = rootNotebookPath + path;
+    if (!rootNotebookPath.endsWith("/") && rootNotebookPath.length > 0)
+      path = rootNotebookPath + "/" + path;
+    else path = rootNotebookPath + path;
 
     const rootNotebookId = await resolveNotebookPath(rootNotebookPath);
     const notebookId =
