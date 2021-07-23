@@ -67,6 +67,7 @@ async function getSortedNotes() {
 async function isNoteIdOnBoard(id: string): Promise<boolean> {
   if (!openBoard) return false;
   const note = await getNoteById(id);
+  if (!note) return true;
   return openBoard.sortNoteIntoColumn(note) !== null;
 }
 
