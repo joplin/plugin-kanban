@@ -91,9 +91,8 @@ export function getConfigNote(noteId: string): Promise<ConfigNote> {
   return joplin.data.get(["notes", noteId], { fields });
 }
 
-export async function getTagId(tagName: string): Promise<string> {
-  const { items: allTags } = await joplin.data.get(["tags"]);
-  const id allTags.find(({ title }: { title: string }) => title === tagName)?.id;
+export async function getTagId(tagName: string): Promise<string | undefined> {
+  const { items: [{ id = undefined } = {}] } = await joplin.data.get(["search"], { query: tagName, type: "tag" });
   log(`Found tag id for ${tagName}: ${id}`)
   return id
 }
@@ -165,16 +164,30 @@ export async function findAllChildrenNotebook(
   return children;
 }
 
-export async function getNotebookPath(searchId: string): Promise<string> {
-  type Folder = {
-    id: string;
-    title: string;
-    parent_id: string;
-  };
+type Folder = {
+  id: string;
+  title: string;
+  parent_id: string;
+};
 
-  const { items: foldersData }: { items: Folder[] } = await joplin.data.get([
-    "folders",
-  ]);
+async function getAllNotebooks(): Promise<Folder[]> {
+  let folders: Folder[] = [];
+  let page = 1;
+  while (true) {
+    const { items: newFolders, has_more: hasMore }: { items: Folder[], has_more: boolean } = await joplin.data.get([
+      "folders",
+    ], {page});
+    folders = [...folders, ...newFolders]
+
+    if (!hasMore) break;
+    else page++;
+  }
+
+  return folders;
+}
+
+export async function getNotebookPath(searchId: string): Promise<string> {
+  const foldersData = await getAllNotebooks();
 
   const recurse = (parentId: string, currentPath: string): string | null => {
     const children = foldersData.filter(
