@@ -1,5 +1,7 @@
 import joplin from "api";
 
+import { log } from "./index"
+
 export interface UpdateQuery {
   type: "post" | "delete" | "put";
   path: string[];
@@ -91,11 +93,15 @@ export function getConfigNote(noteId: string): Promise<ConfigNote> {
 
 export async function getTagId(tagName: string): Promise<string> {
   const { items: allTags } = await joplin.data.get(["tags"]);
-  return allTags.find(({ title }: { title: string }) => title === tagName)?.id;
+  const id allTags.find(({ title }: { title: string }) => title === tagName)?.id;
+  log(`Found tag id for ${tagName}: ${id}`)
+  return id
 }
 
 export async function createTag(tagName: string): Promise<string> {
+  log(`Creating new tag ${tagName}`)
   const result = await joplin.data.post(["tags"], null, { title: tagName });
+  log(`Created new tag ${tagName}, result: ${JSON.stringify(result, null, 4)}\n`)
   return result.id;
 }
 

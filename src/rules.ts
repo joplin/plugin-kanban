@@ -9,6 +9,8 @@ import {
   createNotebook,
 } from "./noteData";
 
+import { log } from "./index"
+
 export interface Rule {
   filterNote: (note: NoteData) => boolean;
   set(noteId: string): UpdateQuery[];
@@ -25,7 +27,9 @@ type Rules = { [ruleName: string]: RuleFactory };
 const rules: Rules = {
   async tag(arg: string | string[]) {
     const tagName = Array.isArray(arg) ? arg[0] : arg;
+    log(`Creating tag rule with name ${tagName}`)
     const tagID = (await getTagId(tagName)) || (await createTag(tagName));
+    log(`Tag ID: ${tagID}`)
     return {
       filterNote: (note: NoteData) => note.tags.includes(tagName),
       set: (noteId: string) => [
@@ -74,7 +78,6 @@ const rules: Rules = {
     const rootNotebookId = await resolveNotebookPath(rootNotebookPath);
     const notebookId =
       (await resolveNotebookPath(path)) || (await createNotebook(path));
-
     const childrenNotebookIds = await findAllChildrenNotebook(notebookId);
     const notebookIdsToSearch = [notebookId, ...childrenNotebookIds];
 
