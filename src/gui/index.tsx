@@ -2,6 +2,7 @@ import React from "react";
 import { render } from "react-dom";
 import styled from "styled-components";
 import { DragDropContext, OnDragEndResponder } from "react-beautiful-dnd";
+import { IoMdSettings } from "react-icons/io"
 
 import { useRemoteBoard, useTempBoard } from "./hooks";
 import Column from "./Column";
@@ -25,7 +26,13 @@ function App() {
 
   return board ? (
     <Container>
-      <Header>{board.name}</Header>
+      <Header>
+        {board.name}
+        <IconCont onClick={() => dispatch({ type: "settings", payload: { target: "filters" } })}>
+          <IoMdSettings size="25px"/>
+        </IconCont>
+      </Header>
+
       <ColumnsCont>
         <DragDropContext onDragEnd={onDragEnd}>
           {board.columns.map(({ name, notes }) => {
@@ -38,6 +45,7 @@ function App() {
                 key={name}
                 name={name}
                 notes={waitingForUpdate && tempCol ? tempCol.notes : notes}
+                onOpenConfig={() => dispatch({ type: "settings", payload: { target: `columns.${name}` } })}
               />
             );
           })}
@@ -65,6 +73,9 @@ const Header = styled("div")({
   padding: "10px",
   paddingLeft: "20px",
   marginBottom: "10px",
+  display: "flex",
+  flexDirection: "row",
+  alignItems: "center"
 });
 
 const ColumnsCont = styled("div")({
@@ -73,3 +84,15 @@ const ColumnsCont = styled("div")({
   flexGrow: 1,
   overflowY: "auto",
 });
+
+const IconCont = styled("div")({
+  width: "33px",
+  height: "33px",
+  border: "1px solid black",
+  borderRadius: "5px",
+  marginLeft: "20px",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  cursor: "pointer"
+})

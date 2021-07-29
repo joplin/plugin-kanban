@@ -1,5 +1,6 @@
 {
 	"extraScripts": [
-		"gui/index.tsx"
+		"gui/index.tsx",
+		"configui/index.tsx"
 	]
 }

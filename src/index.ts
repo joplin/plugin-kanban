@@ -4,12 +4,17 @@ import createBoard, { Board } from "./board";
 import {
   getConfigNote,
   getNoteById,
+  setConfigNoteBody,
   searchNotes,
   executeUpdateQuery,
+  getAllTags,
+  getAllNotebooks,
   NoteData,
 } from "./noteData";
 import { Action } from "./actions";
+import { getRuleEditorTypes } from "./rules"
 import type { BoardState } from "./gui/hooks";
+import type { ConfigUIData } from "./configui"
 
 let openBoard: Board | undefined;
 let view: string | undefined;
@@ -20,7 +25,47 @@ const path = window.require("path")
 let logFilePath: string;
 joplin.settings.globalValue("profileDir").then((v) => logFilePath = path.join(v, "kanban-logs.txt"))
 export function log(msg: string) {
+  console.log(msg)
   fs.appendFile(logFilePath, `[${new Date().toISOString()}]: ${msg}\n`, () => {})
+}
+
+let dialogView: string | undefined;
+async function showConfigUI(targetPath: string) {
+  if (!openBoard) return
+  log(`Displaying config UI for ${targetPath}`)
+
+  if (!dialogView) {
+    log(`Opening config UI for the first time, creating view`)
+    dialogView = await joplin.views.dialogs.create("kanban-config-ui");
+    await joplin.views.dialogs.addScript(dialogView, "configui/main.css");
+    await joplin.views.dialogs.addScript(dialogView, "configui/index.js");
+  }
+
+  const data: ConfigUIData = {
+    config: openBoard.parsedConfig,
+    targetPath,
+    ruleEditorTypes: getRuleEditorTypes(targetPath),
+    allTags: await getAllTags(),
+    allNotebooks: (await getAllNotebooks()).map((n) => n.title),
+  }
+
+  const html = `
+    <template id="data">
+      ${JSON.stringify(data)}
+    </template>
+    <div id="root"></div>
+  `
+  await joplin.views.dialogs.setHtml(dialogView, html);
+  const result = await joplin.views.dialogs.open(dialogView);
+  if (result.id === "ok" && result.formData) {
+    const newYaml = result.formData.config.yaml;
+    log(`Received new YAML from config dialog:\n${newYaml}`)
+
+    const wrappedConf = "```kanban\n" + newYaml + "\n```";
+    return wrappedConf
+  } else {
+    log("Dialog cancelled")
+  }
 }
 
 async function showError(err: string) {
@@ -43,6 +88,18 @@ async function showBoard() {
       if (!openBoard) return;
       if (msg.type === "poll") {
         await new Promise((res) => (pollCb = res));
+      } else if (msg.type === "settings") {
+        const {target} = msg.payload
+        const newConf = await showConfigUI(target)
+        if (newConf) {
+          await setConfigNoteBody(openBoard.configNoteId, newConf)
+          const note = await getConfigNote(openBoard.configNoteId);
+          const board = await createBoard(note);
+          if (board) {
+            log(`Updated board config: \n${JSON.stringify(board, null, 4)}\n`)
+            openBoard = board;
+          } 
+        }
       } else if (msg.type !== "load") {
         for (const query of openBoard.actionToQuery(msg)) {
           log(`Executing update: \n${JSON.stringify(query, null, 4)}\n`)
@@ -117,6 +174,7 @@ async function handleNewlyOpenedNote(newNoteId: string) {
 joplin.plugins.register({
   onStart: async function () {
     log("\nKANBAN PLUGIN STARTED\n")
+    log(`FOLDERS: ${fs.readdirSync(".").join(", ")}`)
 
     joplin.workspace.onNoteSelectionChange(
       ({ value }: { value: [string?] }) => {

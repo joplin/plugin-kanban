@@ -15,6 +15,7 @@ export interface Rule {
   filterNote: (note: NoteData) => boolean;
   set(noteId: string): UpdateQuery[];
   unset(noteId: string): UpdateQuery[];
+  editorType: string;
 }
 
 export type RuleFactory = (
@@ -45,6 +46,7 @@ const rules: Rules = {
           path: ["tags", tagID, "notes", noteId],
         },
       ],
+      editorType: "text",
     };
   },
 
@@ -58,6 +60,7 @@ const rules: Rules = {
         tagRules.some(({ filterNote }) => filterNote(note)),
       set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
       unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
+      editorType: "text",
     };
   },
 
@@ -102,6 +105,7 @@ const rules: Rules = {
           },
         },
       ],
+      editorType: "text",
     };
   },
 
@@ -129,6 +133,7 @@ const rules: Rules = {
           },
         },
       ],
+      editorType: "checkbox",
     };
   },
 
@@ -137,8 +142,29 @@ const rules: Rules = {
       filterNote: (note: NoteData) => note.id !== id,
       set: () => [],
       unset: () => [],
+      editorType: "",
     };
   },
 };
+
+const editorTypes = {
+  filters: {
+    tags: "tags",
+    rootNotebookPath: "notebook",
+    completed: "checkbox",
+  },
+  columns: {
+    tags: "tags",
+    notebookPath: "notebook",
+    completed: "checkbox",
+    backlog: "checkbox",
+  }
+}
+
+export const getRuleEditorTypes = (targetPath: string) => {
+  if (targetPath === "filters") return editorTypes.filters
+  if (targetPath.startsWith("columns")) return editorTypes.columns
+  throw new Error(`Unkown target path ${targetPath}`)
+}
 
 export default rules;

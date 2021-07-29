@@ -15,4 +15,11 @@ export interface PollAction {
   type: "poll";
 }
 
-export type Action = MoveNoteAction | LoadAction | PollAction;
+export interface SettingsAction {
+  type: "settings";
+  payload: {
+    target: string;
+  }
+}
+
+export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction;

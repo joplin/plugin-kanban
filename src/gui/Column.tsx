@@ -5,11 +5,11 @@ import { Droppable } from "react-beautiful-dnd";
 import type { NoteData } from "../noteData";
 import Card from "./Card";
 
-export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
+export default function ({ name, notes, onOpenConfig }: { name: string; notes: NoteData[]; onOpenConfig: () => void }) {
   const sortedNotes = [...notes].sort((a, b) => (a.title < b.title ? -1 : 1));
   return (
     <Column>
-      <ColumnHeader>{name}</ColumnHeader>
+      <ColumnHeader onDoubleClick={() => onOpenConfig()}>{name}</ColumnHeader>
 
       <Droppable droppableId={name}>
         {(provided, snapshot) => (
@@ -45,6 +45,8 @@ const ColumnHeader = styled("div")({
   fontSize: "18px",
   fontWeight: "bold",
   marginBottom: "20px",
+  userSelect: "none",
+  cursor: "pointer"
 });
 
 const DroppableArea = styled("div")<{ draggingOver: boolean }>(

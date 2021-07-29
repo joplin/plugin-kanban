@@ -91,10 +91,35 @@ export function getConfigNote(noteId: string): Promise<ConfigNote> {
   return joplin.data.get(["notes", noteId], { fields });
 }
 
+export async function setConfigNoteBody(noteId: string, newBody: string) {
+  const { id: selectedNoteId } = await joplin.workspace.selectedNote()
+  if (selectedNoteId === noteId) {
+    await joplin.commands.execute("editor.setText", newBody)
+  }
+
+  await joplin.data.put(["notes", noteId], null, { body: newBody });
+}
+
 export async function getTagId(tagName: string): Promise<string | undefined> {
   const { items: [{ id = undefined } = {}] } = await joplin.data.get(["search"], { query: tagName, type: "tag" });
   log(`Found tag id for ${tagName}: ${id}`)
   return id
+}
+
+export async function getAllTags(): Promise<string[]> {
+  let tags: string[] = [];
+  let page = 1;
+  while (true) {
+    const { items: newTags, has_more: hasMore }: { items: { title: string }[], has_more: boolean } = await joplin.data.get([
+      "tags",
+    ], {page});
+    tags = [...tags, ...newTags.map((t) => t.title)]
+
+    if (!hasMore) break;
+    else page++;
+  }
+
+  return tags;
 }
 
 export async function createTag(tagName: string): Promise<string> {
@@ -170,7 +195,7 @@ type Folder = {
   parent_id: string;
 };
 
-async function getAllNotebooks(): Promise<Folder[]> {
+export async function getAllNotebooks(): Promise<Folder[]> {
   let folders: Folder[] = [];
   let page = 1;
   while (true) {

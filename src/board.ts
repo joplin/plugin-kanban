@@ -5,13 +5,14 @@ import rules, { Rule } from "./rules";
 import { ConfigNote, UpdateQuery } from "./noteData";
 import type { Action } from "./actions";
 
+export type RuleValue = string | string[] | boolean | undefined;
 export interface Config {
   filters: {
-    [ruleName: string]: string | string[];
+    [ruleName: string]: RuleValue;
     rootNotebookPath: string;
   };
   columns: {
-    [ruleName: string]: string | string[] | boolean | undefined;
+    [ruleName: string]: RuleValue;
     name: string;
     backlog?: boolean;
   }[];
@@ -24,6 +25,7 @@ interface Column {
 
 export interface Board {
   configNoteId: string;
+  parsedConfig: Config;
   boardName: string;
   columnNames: string[];
   rootNotebookName: string;
@@ -57,7 +59,7 @@ export default async function ({
       rootNotebookPath: await getNotebookPath(boardNotebookId),
     };
 
-  const { rootNotebookPath } = configObj.filters;
+  const { rootNotebookPath = await getNotebookPath(boardNotebookId) } = configObj.filters;
   const rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
   const baseFilters: Rule["filterNote"][] = [
@@ -65,8 +67,9 @@ export default async function ({
   ];
 
   for (const key in configObj.filters) {
-    const val = configObj.filters[key];
-    if (key in rules) {
+    let val = configObj.filters[key];
+    if (typeof val === "boolean") val = `${val}`;
+    if (val && key in rules) {
       const rule = await rules[key](val, configObj);
       baseFilters.push(rule.filterNote);
     } else if (key === "rootNotebookPath") {
@@ -107,6 +110,7 @@ export default async function ({
     configNoteId,
     boardName,
     rootNotebookName,
+    parsedConfig: configObj,
     columnNames: configObj.columns.map(({ name }) => name),
 
     sortNoteIntoColumn(note: NoteData) {
