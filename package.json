@@ -1,5 +1,5 @@
 {
-  "name": "joplin-plugin-kanbantest",
+  "name": "joplin-plugin-kanban",
   "version": "1.0.0",
   "scripts": {
     "test": "jest",
@@ -19,6 +19,7 @@
     "@types/react-dom": "^17.0.8",
     "@types/react-select": "^4.0.17",
     "@types/styled-components": "^5.1.10",
+    "@types/js-yaml": "^4.0.1",
     "chalk": "^4.1.0",
     "copy-webpack-plugin": "^6.1.0",
     "fs-extra": "^9.0.1",
@@ -35,7 +36,6 @@
     "yargs": "^16.2.0"
   },
   "dependencies": {
-    "@types/js-yaml": "^4.0.1",
     "js-yaml": "^4.1.0",
     "react": "^17.0.2",
     "react-beautiful-dnd": "^13.1.0",
