@@ -18,7 +18,7 @@ export type RuleValue = string | string[] | boolean | undefined;
 export interface Config {
   filters: {
     [ruleName: string]: RuleValue;
-    rootNotebookPath: string;
+    rootNotebookPath?: string;
   };
   columns: {
     [ruleName: string]: RuleValue;
@@ -181,25 +181,22 @@ export default async function ({
   if (!configObj) {
     return { ...boardBase, isValid: false, errorMessages: [error as Message] }
   }
-
+  
   const { rootNotebookPath = await getNotebookPath(boardNotebookId) } = configObj.filters || {};
   const rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
   const baseFilters: Rule["filterNote"][] = [
-    (await rules.excludeNoteId(configNoteId, configObj)).filterNote,
+    (await rules.excludeNoteId(configNoteId, rootNotebookPath, configObj)).filterNote,
   ];
 
   for (const key in configObj.filters) {
     let val = configObj.filters[key];
     if (typeof val === "boolean") val = `${val}`;
     if (val && key in rules) {
-      const rule = await rules[key](val, configObj);
+      const rule = await rules[key](val, rootNotebookPath, configObj);
       baseFilters.push(rule.filterNote);
     } else if (key === "rootNotebookPath") {
-      const rule = await rules.notebookPath(rootNotebookPath, {
-        ...configObj,
-        filters: { ...configObj.filters, rootNotebookPath: "" },
-      });
+      const rule = await rules.notebookPath(rootNotebookPath, "", configObj);
       baseFilters.push(rule.filterNote);
     }
   }
@@ -221,7 +218,7 @@ export default async function ({
         let val = col[key];
         if (typeof val === "boolean") val = `${val}`;
         if (val && key in rules) {
-          const rule = await rules[key](val, configObj);
+          const rule = await rules[key](val, rootNotebookPath, configObj);
           newCol.rules.push(rule);
         }
       }

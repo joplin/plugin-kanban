@@ -20,6 +20,7 @@ export interface Rule {
 
 export type RuleFactory = (
   ruleValue: string | string[],
+  rootNotebookPath: string,
   config: Config
 ) => Promise<Rule>;
 
@@ -50,10 +51,10 @@ const rules: Rules = {
     };
   },
 
-  async tags(tagNames: string | string[], config: Config) {
+  async tags(tagNames: string | string[], rootNbPath: string, config: Config) {
     if (!Array.isArray(tagNames)) tagNames = [tagNames];
     const tagRules = await Promise.all(
-      tagNames.map((t) => rules.tag(t, config))
+      tagNames.map((t) => rules.tag(t, rootNbPath, config))
     );
     return {
       filterNote: (note: NoteData) =>
@@ -64,12 +65,9 @@ const rules: Rules = {
     };
   },
 
-  async notebookPath(path: string | string[], config: Config) {
+  async notebookPath(path: string | string[], rootNotebookPath: string) {
     if (Array.isArray(path)) path = path[0];
 
-    let {
-      filters: { rootNotebookPath },
-    } = config;
     if (path.startsWith("/")) path = path.slice(1);
     if (path.endsWith("/")) path = path.slice(0, -1);
     if (rootNotebookPath.startsWith("/"))

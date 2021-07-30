@@ -20,7 +20,7 @@ export default function (editedPath: string, inputConfig: Config) {
   }, [editedColName]);
 
   const editedObj =
-    editedColIdx === null ? config[editedKey] : config.columns[editedColIdx];
+    editedColIdx === null ? config[editedKey] || {} : config.columns[editedColIdx];
 
   const editObj = (conf: typeof config, cb: <T>(o: T) => T) =>
     editedColIdx === null
