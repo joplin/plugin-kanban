@@ -193,5 +193,6 @@ const MessageSummary = styled("summary")({
 
 const MessageDetail = styled("code")({
   display: "block",
-  paddingTop: "15px"
+  paddingTop: "15px",
+  whiteSpace: "pre-wrap",
 })
