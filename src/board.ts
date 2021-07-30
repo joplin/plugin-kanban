@@ -182,12 +182,7 @@ export default async function ({
     return { ...boardBase, isValid: false, errorMessages: [error as Message] }
   }
 
-  if (!configObj.filters)
-    configObj.filters = {
-      rootNotebookPath: await getNotebookPath(boardNotebookId),
-    };
-
-  const { rootNotebookPath = await getNotebookPath(boardNotebookId) } = configObj.filters;
+  const { rootNotebookPath = await getNotebookPath(boardNotebookId) } = configObj.filters || {};
   const rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
   const baseFilters: Rule["filterNote"][] = [
