@@ -99,7 +99,7 @@ export async function isNoteIdOnBoard(id: string, board?: Board): Promise<boolea
 
 export const parseConfigNote = (yamlConfig: string): { config?: Config; error?: Message } => {
   try {
-    const fixedYaml = yamlConfig.replace('\t', "  ")
+    const fixedYaml = yamlConfig.replace(/\t/g, "  ")
     const configObj = yaml.load(fixedYaml) as Config;
     const configError = validateConfig(configObj)
     if (configError) return { error: configError };
