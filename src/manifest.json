@@ -1,12 +1,12 @@
 {
   "manifest_version": 1,
-  "id": "com.mablin7.test.kanban",
+  "id": "com.github.joplin.kanban",
   "app_min_version": "1.7",
   "version": "1.0.0",
-  "name": "KanbanTest",
-  "description": "",
-  "author": "",
-  "homepage_url": "",
-  "repository_url": "",
-  "keywords": []
+  "name": "Kanban",
+  "description": "Flexible kanban board plugin for all your tasks",
+  "author": "Balint Magyar",
+  "homepage_url": "https://discourse.joplinapp.org/t/kanban-board-project/17469",
+  "repository_url": "https://github.com/joplin/plugin-kanban",
+  "keywords": ["kanban", "board", "task", "todo", "project"]
 }
