@@ -22,4 +22,13 @@ export interface SettingsAction {
   }
 }
 
-export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction;
+export interface MessageAction {
+  type: "messageAction";
+  payload: {
+    messageId: string;
+    actionName: string;
+  }
+}
+
+
+export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction | MessageAction;

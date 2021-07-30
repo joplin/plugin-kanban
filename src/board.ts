@@ -1,9 +1,18 @@
 import * as yaml from "js-yaml";
-import { getNotebookPath, NoteData } from "./noteData";
+import { getNotebookPath, getNoteById, searchNotes, NoteData } from "./noteData";
 
 import rules, { Rule } from "./rules";
 import { ConfigNote, UpdateQuery } from "./noteData";
 import type { Action } from "./actions";
+import type { BoardState } from "./gui/hooks"
+
+export interface Message {
+  id: string;
+  title: string;
+  severity: "info" | "warning" | "error"
+  details?: string;
+  actions: string[];
+}
 
 export type RuleValue = string | string[] | boolean | undefined;
 export interface Config {
@@ -23,26 +32,133 @@ interface Column {
   rules: Rule[];
 }
 
-export interface Board {
+interface BoardBase {
+  isValid: boolean;
   configNoteId: string;
-  parsedConfig: Config;
   boardName: string;
+  configYaml: string;
+}
+
+interface ValidBoard extends BoardBase {
+  isValid: true;
+  parsedConfig: Config;
   columnNames: string[];
   rootNotebookName: string;
   sortNoteIntoColumn(note: NoteData): string | null;
   actionToQuery(action: Action): UpdateQuery[];
 }
 
-const parseConfigNote = (boardNoteBody: string): Config | null | {} => {
+interface InvalidBoard extends BoardBase {
+  isValid: false;
+  errorMessages: Message[];
+}
+
+export type Board = ValidBoard | InvalidBoard;
+
+export const getYamlConfig = (boardNoteBody: string): string | null =>  {
   const configRegex = /^```kanban(.*)```/ms;
   const match = boardNoteBody.match(configRegex);
   if (!match || match.length < 2) return null;
+  return match[1];
+}
 
-  const configStr = match[1];
-  const configObj = yaml.load(configStr) as Config | {};
+export async function getBoardState(board?: Board): Promise<BoardState> {
+  if (!board) throw new Error("No open board");
 
-  // TODO: return error messages on invalid configs
-  return configObj;
+  const state: BoardState = {
+    name: board.boardName,
+    messages: []
+  }
+
+  if (board.isValid) {
+    const allNotes = await searchNotes(board.rootNotebookName);
+    const sortedNotes: { [col: string]: NoteData[] } = {};
+    board.columnNames.forEach((n) => (sortedNotes[n] = []));
+    for (const note of allNotes) {
+      const colName = board.sortNoteIntoColumn(note);
+      if (colName) sortedNotes[colName].push(note);
+    }
+
+    const sortedColumns: BoardState["columns"] = Object.entries(sortedNotes).map(
+      ([name, notes]) => ({ name, notes })
+    );
+    state.columns = sortedColumns
+  } else {
+    state.messages = board.errorMessages
+  }
+
+  return state;
+}
+
+export async function isNoteIdOnBoard(id: string, board?: Board): Promise<boolean> {
+  if (!board || !board.isValid) return false;
+  const note = await getNoteById(id);
+  if (!note) return true;
+  return board.sortNoteIntoColumn(note) !== null;
+}
+
+export const parseConfigNote = (yamlConfig: string): { config?: Config; error?: Message } => {
+  try {
+    const fixedYaml = yamlConfig.replace('\t', "  ")
+    const configObj = yaml.load(fixedYaml) as Config;
+    const configError = validateConfig(configObj)
+    if (configError) return { error: configError };
+    return { config: configObj };
+  } catch (e) {
+    return {
+      error: {
+        id: "parseError",
+        severity: "error",
+        title: "YAML Parse error",
+        details: e.message,
+        actions: [],
+      },
+    };
+  }
+};
+
+const configErr = (title: string, details?: string): Message => ({
+  id: "configError",
+  severity: "error",
+  title,
+  details,
+  actions: [],
+});
+
+const validateConfig = (config: Config | {} | null): Message | null => {
+  if (!config || typeof config !== "object")
+    return configErr("Configuration is empty");
+  if (!("columns" in config)) return configErr("There are no columns defined!");
+  if (!Array.isArray(config.columns))
+    return configErr("Columns has to be a list");
+  if (config.columns.length === 0)
+    return configErr("You have to define at least one column");
+
+  if ("filters" in config) {
+    if (typeof config.filters !== "object" || Array.isArray(config.filters))
+      return configErr("Filters has to contain a dictionary of rules");
+    for (const key in config.filters) {
+      if (!(key in rules) && key !== "rootNotebookPath")
+        return configErr(`Invalid rule type "${key}" in filters`);
+    }
+  }
+
+  for (const col of config.columns) {
+    if (typeof col !== "object" || Array.isArray(col))
+      return configErr(
+        `Column #${config.columns.indexOf(col) + 1} is not a dictionary`
+      );
+    if (!("name" in col) || typeof col.name !== "string" || col.name === "")
+      return configErr(
+        `Column #${config.columns.indexOf(col) + 1} has no name!`
+      );
+    for (const key in col) {
+      if (!(key in rules) && key !== "backlog" && key !== "name")
+        return configErr(`Invalid rule type "${key}" in column "${col.name}"`);
+    }
+  }
+
+  return null;
 };
 
 export default async function ({
@@ -51,8 +167,20 @@ export default async function ({
   body: configBody,
   parent_id: boardNotebookId,
 }: ConfigNote): Promise<Board | null> {
-  const configObj = parseConfigNote(configBody);
-  if (!configObj || !("columns" in configObj)) return null;
+  const configYaml = getYamlConfig(configBody);
+  if (!configYaml) return null;
+
+  const boardBase: BoardBase = {
+    boardName,
+    configNoteId,
+    configYaml,
+    isValid: false
+  }
+
+  const { config: configObj, error } = parseConfigNote(configYaml);
+  if (!configObj) {
+    return { ...boardBase, isValid: false, errorMessages: [error as Message] }
+  }
 
   if (!configObj.filters)
     configObj.filters = {
@@ -107,8 +235,8 @@ export default async function ({
   }
 
   const board: Board = {
-    configNoteId,
-    boardName,
+    ...boardBase,
+    isValid: true,
     rootNotebookName,
     parsedConfig: configObj,
     columnNames: configObj.columns.map(({ name }) => name),
@@ -147,5 +275,5 @@ export default async function ({
     },
   };
 
-  return board;
+  return  board ;
 }

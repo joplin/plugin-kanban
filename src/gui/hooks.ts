@@ -2,13 +2,15 @@ import { useEffect, useState, useRef } from "react";
 
 import type { NoteData } from "../noteData";
 import type { Action } from "../actions";
+import type { Message } from "../board";
 
 export interface BoardState {
   name: string;
-  columns: {
+  columns?: {
     name: string;
     notes: NoteData[];
   }[];
+  messages: Message[];
 }
 
 interface State {
@@ -66,7 +68,7 @@ export function useTempBoard(
   }>({});
 
   const moveNote = (noteId: string, oldCol: string, newCol: string) => {
-    if (!board) return;
+    if (!board || !board.columns) return;
 
     const note = (
       board.columns.find(({ name }) => name === oldCol)?.notes as NoteData[]
@@ -78,7 +80,7 @@ export function useTempBoard(
     };
   };
 
-  if (board && tempState.current.movedNote) {
+  if (board && board.columns && tempState.current.movedNote) {
     const tempBoardCols = board.columns.map(({ name, notes }) => {
       let newNotes = notes;
       if (tempState.current.newCol === name)
@@ -94,6 +96,7 @@ export function useTempBoard(
     const tempBoard = {
       name: board.name,
       columns: tempBoardCols,
+      messages: board.messages
     };
 
     return [tempBoard, moveNote];

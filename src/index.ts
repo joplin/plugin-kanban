@@ -1,15 +1,18 @@
 import joplin from "api";
 
-import createBoard, { Board } from "./board";
+import createBoard, {
+  Board,
+  isNoteIdOnBoard,
+  getYamlConfig,
+  getBoardState,
+  parseConfigNote,
+} from "./board";
 import {
   getConfigNote,
-  getNoteById,
   setConfigNoteBody,
-  searchNotes,
   executeUpdateQuery,
   getAllTags,
   getAllNotebooks,
-  NoteData,
 } from "./noteData";
 import { Action } from "./actions";
 import { getRuleEditorTypes } from "./rules"
@@ -31,7 +34,7 @@ export function log(msg: string) {
 
 let dialogView: string | undefined;
 async function showConfigUI(targetPath: string) {
-  if (!openBoard) return
+  if (!openBoard || !("parsedConfig" in openBoard)) return
   log(`Displaying config UI for ${targetPath}`)
 
   if (!dialogView) {
@@ -68,11 +71,15 @@ async function showConfigUI(targetPath: string) {
   }
 }
 
-async function showError(err: string) {
-  log(`Showing error: ${err}`)
-  if (!view) view = await joplin.views.panels.create("kanban");
-  await joplin.views.panels.setHtml(view, err);
-  await joplin.views.panels.show(view);
+async function reloadConfig(noteId: string) {
+  const note = await getConfigNote(noteId);
+  const board = await createBoard(note);
+  if (board) {
+    log(`Updated board config: \n${JSON.stringify(board, null, 4)}\n`)
+    openBoard = board;
+  } else {
+    hideBoard()
+  }
 }
 
 async function showBoard() {
@@ -86,6 +93,7 @@ async function showBoard() {
     joplin.views.panels.onMessage(view, async (msg: Action) => {
       log(`Got message from webview:\n${JSON.stringify(msg, null, 4)}\n`)
       if (!openBoard) return;
+
       if (msg.type === "poll") {
         await new Promise((res) => (pollCb = res));
       } else if (msg.type === "settings") {
@@ -93,55 +101,38 @@ async function showBoard() {
         const newConf = await showConfigUI(target)
         if (newConf) {
           await setConfigNoteBody(openBoard.configNoteId, newConf)
-          const note = await getConfigNote(openBoard.configNoteId);
-          const board = await createBoard(note);
-          if (board) {
-            log(`Updated board config: \n${JSON.stringify(board, null, 4)}\n`)
-            openBoard = board;
-          } 
+          await reloadConfig(openBoard.configNoteId);
         }
-      } else if (msg.type !== "load") {
+      } else if (msg.type === "messageAction") {
+        const { messageId, actionName } = msg.payload
+        if (messageId === "reload" && actionName === "reload") {
+          await reloadConfig(openBoard.configNoteId);
+        }
+      } else if (msg.type !== "load" && "actionToQuery" in openBoard) {
         for (const query of openBoard.actionToQuery(msg)) {
           log(`Executing update: \n${JSON.stringify(query, null, 4)}\n`)
           await executeUpdateQuery(query);
         }
       }
 
-      const newState = { name: openBoard.boardName, columns: await getSortedNotes() };
+      const newState: BoardState = await getBoardState(openBoard);
+      const currentYaml = getYamlConfig((await getConfigNote(openBoard.configNoteId)).body)
+      if (currentYaml !== openBoard.configYaml) {
+        if (!currentYaml) return hideBoard()
+        const { error } = parseConfigNote(currentYaml)
+        newState.messages.push(error || { id: "reload", severity: "warning", title: "The configuration has changed, would you like to reload the board?", actions: ["reload"] })
+      }
+
       log(`Sending back update to webview: \n${JSON.stringify(newState, null, 4)}\n`)
       return newState;
     });
-  } else {
+  } else if (!(await joplin.views.panels.visible(view))) {
     await joplin.views.panels.show(view);
   }
 }
 
 function hideBoard() {
   if (view) joplin.views.panels.hide(view);
-}
-
-async function getSortedNotes() {
-  if (!openBoard) return;
-
-  const allNotes = await searchNotes(openBoard.rootNotebookName);
-  const sortedNotes: { [col: string]: NoteData[] } = {};
-  openBoard.columnNames.forEach((n) => (sortedNotes[n] = []));
-  allNotes.forEach((note) => {
-    const colName = openBoard?.sortNoteIntoColumn(note);
-    if (colName) sortedNotes[colName].push(note);
-  });
-
-  const sortedColumns: BoardState["columns"] = Object.entries(sortedNotes).map(
-    ([name, notes]) => ({ name, notes })
-  );
-  return sortedColumns;
-}
-
-async function isNoteIdOnBoard(id: string): Promise<boolean> {
-  if (!openBoard) return false;
-  const note = await getNoteById(id);
-  if (!note) return true;
-  return openBoard.sortNoteIntoColumn(note) !== null;
 }
 
 async function handleNewlyOpenedNote(newNoteId: string) {
@@ -157,16 +148,9 @@ async function handleNewlyOpenedNote(newNoteId: string) {
   }
 
   if (!openBoard || (openBoard as Board).configNoteId !== newNoteId) {
-    const note = await getConfigNote(newNoteId);
-    try {
-      const board = await createBoard(note);
-      if (board) {
-        log(`Created new board: \n${JSON.stringify(board, null, 4)}\n`)
-        openBoard = board;
-        showBoard();
-      }
-    } catch (e) {
-      if (e.message) showError(e.message);
+    await reloadConfig(newNoteId);
+    if (openBoard) {
+      showBoard();
     }
   }
 }
@@ -174,12 +158,10 @@ async function handleNewlyOpenedNote(newNoteId: string) {
 joplin.plugins.register({
   onStart: async function () {
     log("\nKANBAN PLUGIN STARTED\n")
-    log(`FOLDERS: ${fs.readdirSync(".").join(", ")}`)
 
     joplin.workspace.onNoteSelectionChange(
       ({ value }: { value: [string?] }) => {
         const newNoteId = value?.[0];
-        if (pollCb) pollCb();
         if (newNoteId) handleNewlyOpenedNote(newNoteId);
       }
     );
@@ -187,16 +169,9 @@ joplin.plugins.register({
     joplin.workspace.onNoteChange(async ({ id }) => {
       log(`Note ${id} changed`);
       if (!openBoard) return;
-      if (openBoard.configNoteId === id && pollCb) {
-        const note = await getConfigNote(id);
-        const board = await createBoard(note);
-        if (board) {
-          log(`Updated board config: \n${JSON.stringify(board, null, 4)}\n`)
-          openBoard = board;
-          if (pollCb) pollCb();
-        } else {
-          hideBoard();
-        }
+      if (openBoard.configNoteId === id) {
+        if (!openBoard.isValid) await reloadConfig(id);
+        if (pollCb) pollCb();
       } else if (await isNoteIdOnBoard(id)) {
         log("Changed note was on the board, updating");
         if (pollCb) pollCb();
