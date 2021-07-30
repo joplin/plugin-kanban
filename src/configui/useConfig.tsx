@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import * as yaml from "js-yaml";
 
 import type { Config, RuleValue } from "../board";
@@ -10,12 +10,14 @@ export default function (editedPath: string, inputConfig: Config) {
     keyof Config,
     string?
   ];
-  const editedColIdx =
-    editedColName === null
-      ? null
-      : config.columns.findIndex((c) => c.name === editedColName);
-  if (editedColIdx === -1)
-    throw new Error(`Invalid column name: ${editedColName}`);
+  const editedColIdx = useMemo(() => {
+    const idx =
+      editedColName === null
+        ? null
+        : config.columns.findIndex((c) => c.name === editedColName);
+    if (idx === -1) throw new Error(`Invalid column name: ${editedColName}`);
+    return idx;
+  }, [editedColName]);
 
   const editedObj =
     editedColIdx === null ? config[editedKey] : config.columns[editedColIdx];
@@ -65,8 +67,8 @@ export default function (editedPath: string, inputConfig: Config) {
       prop === "tags" && val.length === 1 ? ["tag", val[0]] : [prop, val]
     )
     .filter(([_, val]) => val !== "" && val !== null && val !== []);
-  const outObj = Object.fromEntries(outObjEntries)
-  const outConf = editObj(config, () => outObj)
+  const outObj = Object.fromEntries(outObjEntries);
+  const outConf = editObj(config, () => outObj);
   const yamlConfig = yaml.dump(outConf);
 
   return { yamlConfig, onPropChange, onDeleteProp, editedObj };
