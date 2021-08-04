@@ -35,12 +35,12 @@ export function useRemoteBoard(): [
   const shouldPoll = useRef(true);
   const poll = () => {
     webviewApi.postMessage({ type: "poll" }).then((newBoard: BoardState) => {
-      console.log(
-        "POLL ANSWER",
-        shouldPoll.current ? "resending poll" : "polling disabled"
-      );
-      setState({ board: newBoard, waitingForUpdate: false });
-      if (shouldPoll.current === true) poll();
+      if (!newBoard) {
+        shouldPoll.current = false
+      } else {
+        setState({ board: newBoard, waitingForUpdate: false });
+        if (shouldPoll.current === true) poll();
+      }
     });
   };
 
