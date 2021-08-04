@@ -90,7 +90,7 @@ export async function getBoardState(board?: Board): Promise<BoardState> {
   return state;
 }
 
-export async function isNoteIdOnBoard(id: string, board?: Board): Promise<boolean> {
+export async function isNoteIdOnBoard(id: string, board: Board | undefined): Promise<boolean> {
   if (!board || !board.isValid) return false;
   const note = await getNoteById(id);
   if (!note) return true;
@@ -187,6 +187,7 @@ export default async function ({
 
   const baseFilters: Rule["filterNote"][] = [
     (await rules.excludeNoteId(configNoteId, rootNotebookPath, configObj)).filterNote,
+    (await rules.notebookPath(rootNotebookPath, "", configObj)).filterNote
   ];
 
   for (const key in configObj.filters) {
@@ -194,9 +195,6 @@ export default async function ({
     if (typeof val === "boolean") val = `${val}`;
     if (val && key in rules) {
       const rule = await rules[key](val, rootNotebookPath, configObj);
-      baseFilters.push(rule.filterNote);
-    } else if (key === "rootNotebookPath") {
-      const rule = await rules.notebookPath(rootNotebookPath, "", configObj);
       baseFilters.push(rule.filterNote);
     }
   }

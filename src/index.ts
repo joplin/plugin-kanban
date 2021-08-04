@@ -139,7 +139,7 @@ async function handleNewlyOpenedNote(newNoteId: string) {
   log(`Opened new note, id: ${newNoteId}`)
   if (openBoard) {
     if (openBoard.configNoteId === newNoteId) return;
-    if (await isNoteIdOnBoard(newNoteId)) return;
+    if (await isNoteIdOnBoard(newNoteId, openBoard)) return;
     else {
       log(`Opened note not on the board, closing`)
       hideBoard();
@@ -172,7 +172,7 @@ joplin.plugins.register({
       if (openBoard.configNoteId === id) {
         if (!openBoard.isValid) await reloadConfig(id);
         if (pollCb) pollCb();
-      } else if (await isNoteIdOnBoard(id)) {
+      } else if (await isNoteIdOnBoard(id, openBoard)) {
         log("Changed note was on the board, updating");
         if (pollCb) pollCb();
       }
