@@ -45,7 +45,7 @@ const Column = styled("div")({
   alignItems: "stretch",
   width: "300px",
   minWidth: "200px",
-  padding: "0 20px",
+  padding: "0 15px",
   "& + &": {
     borderLeft: "1px #DDDDDD solid",
   },
@@ -62,8 +62,9 @@ const ColumnHeader = styled("div")({
 const DroppableArea = styled("div")<{ draggingOver: boolean }>(
   ({ draggingOver }) => ({
     minHeight: "200px",
-    padding: "5px",
+    height: "100%",
     borderRadius: "5px",
+    overflowY: "auto",
     // border: draggingOver ? "royalblue solid 1px" : "unset"
     boxShadow: draggingOver
       ? "0px 0px 6px 3px rgba(4, 164, 255, 0.41) inset"

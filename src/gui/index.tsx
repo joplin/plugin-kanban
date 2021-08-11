@@ -148,6 +148,7 @@ const ColumnsCont = styled("div")({
   alignItems: "stretch",
   flexGrow: 1,
   overflowY: "auto",
+  marginBottom: "20px"
 });
 
 const IconCont = styled("div")({

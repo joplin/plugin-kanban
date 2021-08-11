@@ -24,7 +24,6 @@ export default function ({ note, index, onOpenNote }: { note: NoteData; index: n
 
 const Card = styled.div<{ dragged: boolean }>(({ dragged }) => ({
   boxSizing: "border-box",
-  maxHeight: "100px",
   padding: "15px",
   marginTop: "20px",
   fontSize: "20px",
@@ -32,6 +31,8 @@ const Card = styled.div<{ dragged: boolean }>(({ dragged }) => ({
   border: "2px #DDDDDD solid",
   backgroundColor: "var(--joplin-background-color)",
   cursor: "pointer !important",
+  overflow: "hidden",
+  overflowWrap: "anywhere",
 
   boxShadow: dragged ? "8px 9px 47px 12px rgba(0, 0, 0, 0.41)" : "unset",
   transition: "box-shadow linear 0.2s",
