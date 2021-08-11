@@ -161,7 +161,7 @@ const editorTypes = {
 
 export const getRuleEditorTypes = (targetPath: string) => {
   if (targetPath === "filters") return editorTypes.filters
-  if (targetPath.startsWith("columns")) return editorTypes.columns
+  if (targetPath.startsWith("column")) return editorTypes.columns
   throw new Error(`Unkown target path ${targetPath}`)
 }
 

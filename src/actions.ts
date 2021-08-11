@@ -37,5 +37,9 @@ export interface OpenNoteAction {
   }
 }
 
+export interface AddColumnAction {
+ type: "addColumn";
+}
 
-export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction | MessageAction | OpenNoteAction;
+
+export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction | MessageAction | OpenNoteAction | AddColumnAction;

@@ -6,7 +6,7 @@
   "name": "Kanban",
   "description": "Flexible kanban board plugin for all your tasks",
   "author": "Balint Magyar",
-  "homepage_url": "https://discourse.joplinapp.org/t/kanban-board-project/17469",
+  "homepage_url": "https://github.com/joplin/plugin-kanban/wiki",
   "repository_url": "https://github.com/joplin/plugin-kanban",
   "keywords": ["kanban", "board", "task", "todo", "project"]
 }

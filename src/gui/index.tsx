@@ -2,7 +2,7 @@ import React from "react";
 import { render } from "react-dom";
 import styled from "styled-components";
 import { DragDropContext, OnDragEndResponder } from "react-beautiful-dnd";
-import { IoMdSettings } from "react-icons/io"
+import { IoMdSettings, IoMdAdd } from "react-icons/io"
 
 import type { Message } from "../board";
 import { capitalize } from "../utils"
@@ -78,6 +78,10 @@ function App() {
         <IconCont onClick={() => dispatch({ type: "settings", payload: { target: "filters" } })}>
           <IoMdSettings size="25px"/>
         </IconCont>
+
+        <IconCont onClick={() => dispatch({ type: "settings", payload: { target: "columnnew" } })}>
+          <IoMdAdd size="25px"/>
+        </IconCont>
       </Header>
 
       <MessagesCont>
@@ -98,7 +102,7 @@ function App() {
       {board.columns && 
         <ColumnsCont>
           <DragDropContext onDragEnd={onDragEnd}>
-            {board.columns.map(({ name, notes }) => {
+            {board.columns.map(({ name, notes }, idx) => {
               const tempCol = tempBoard?.columns?.find(
                 ({ name: n }) => n === name
               );
@@ -108,7 +112,7 @@ function App() {
                   key={name}
                   name={name}
                   notes={waitingForUpdate && tempCol ? tempCol.notes : notes}
-                  onOpenConfig={() => dispatch({ type: "settings", payload: { target: `columns.${name}` } })}
+                  onOpenConfig={() => dispatch({ type: "settings", payload: { target: `columns.${idx}` } })}
                   onOpenNote={onOpenNote}
                   />
               );

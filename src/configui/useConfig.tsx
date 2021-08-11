@@ -4,62 +4,37 @@ import * as yaml from "js-yaml";
 import type { Config, RuleValue } from "../board";
 
 export default function (editedPath: string, inputConfig: Config) {
-  const [config, setConfig] = useState(inputConfig);
-
-  const [editedKey, editedColName = null] = editedPath.split(".", 2) as [
-    keyof Config,
-    string?
+  const [editedKey, colIdxStr = null] = editedPath.split(".", 2) as [
+    string,
+    string
   ];
-  const editedColIdx = useMemo(() => {
-    const idx =
-      editedColName === null
-        ? null
-        : config.columns.findIndex((c) => c.name === editedColName);
-    if (idx === -1) throw new Error(`Invalid column name: ${editedColName}`);
-    return idx;
-  }, [editedColName]);
+  const [editedColIdx, setEditedColIdx] = useState(colIdxStr === null ? null : parseInt(colIdxStr));
 
-  const editedObj =
-    editedColIdx === null ? config[editedKey] || {} : config.columns[editedColIdx];
-
-  const editObj = (conf: typeof config, cb: <T>(o: T) => T) =>
-    editedColIdx === null
-      ? {
-          ...conf,
-          [editedKey]: cb(conf[editedKey]),
-        }
-      : {
-          ...conf,
-          columns: [
-            ...conf.columns.slice(0, editedColIdx),
-            cb(conf.columns[editedColIdx]),
-            ...conf.columns.slice(editedColIdx + 1),
-          ],
-        };
+  const [editedObj, setEditedObj] = useState(() => {
+    if (editedColIdx !== null) return inputConfig.columns[editedColIdx];
+    if (editedKey in inputConfig) return inputConfig[editedKey as keyof Config];
+    return {};
+  });
 
   const onPropChange = (prop: string, newVal: RuleValue) =>
-    setConfig((conf) => editObj(conf, (o) => ({ ...o, [prop]: newVal })));
+    setEditedObj((obj) => ({ ...obj, [prop]: newVal }));
 
   const onDeleteProp = (prop: string) =>
-    setConfig((conf) =>
-      editObj(conf, (o) => {
-        const filteredEntries = Object.entries(o).filter(([k]) => k !== prop);
-        return Object.fromEntries(filteredEntries) as typeof o;
-      })
-    );
+    setEditedObj((obj) => {
+      const filteredEntries = Object.entries(obj).filter(([k]) => k !== prop);
+      return Object.fromEntries(filteredEntries) as typeof obj;
+    });
 
   if ("tag" in editedObj) {
-    setConfig((conf) =>
-      editObj(conf, (o) => {
-        const filteredEntries = Object.entries(o).filter(([k]) => k !== "tag");
-        const newObj = Object.fromEntries(filteredEntries) as typeof o;
-        (newObj as any).tags = [
-          editedObj.tag as string,
-          ...((editedObj?.tags as string[]) || []),
-        ];
-        return newObj;
-      })
-    );
+    setEditedObj((obj) => {
+      const filteredEntries = Object.entries(obj).filter(([k]) => k !== "tag");
+      const newObj = Object.fromEntries(filteredEntries) as typeof obj;
+      (newObj as any).tags = [
+        editedObj.tag as string,
+        ...((editedObj?.tags as string[]) || []),
+      ];
+      return newObj;
+    });
   }
 
   const outObjEntries = Object.entries(editedObj)
@@ -68,7 +43,20 @@ export default function (editedPath: string, inputConfig: Config) {
     )
     .filter(([_, val]) => val !== "" && val !== null && val !== []);
   const outObj = Object.fromEntries(outObjEntries);
-  const outConf = editObj(config, () => outObj);
+  const outConf =
+    editedColIdx === null
+      ? {
+          ...inputConfig,
+          [editedKey]: outObj,
+        }
+      : {
+          ...inputConfig,
+          columns: [
+            ...inputConfig.columns.slice(0, editedColIdx),
+            outObj,
+            ...inputConfig.columns.slice(editedColIdx + 1),
+          ],
+        };
   const yamlConfig = yaml.dump(outConf);
 
   return { yamlConfig, onPropChange, onDeleteProp, editedObj };

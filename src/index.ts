@@ -2,6 +2,7 @@ import joplin from "api";
 
 import createBoard, {
   Board,
+  Config,
   isNoteIdOnBoard,
   getYamlConfig,
   getBoardState,
@@ -34,40 +35,49 @@ export function log(msg: string) {
 
 let dialogView: string | undefined;
 async function showConfigUI(targetPath: string) {
-  if (!openBoard || !("parsedConfig" in openBoard)) return
-  log(`Displaying config UI for ${targetPath}`)
+  if (!openBoard || !("parsedConfig" in openBoard)) return;
+  log(`Displaying config UI for ${targetPath}`);
 
   if (!dialogView) {
-    log(`Opening config UI for the first time, creating view`)
+    log(`Opening config UI for the first time, creating view`);
     dialogView = await joplin.views.dialogs.create("kanban-config-ui");
     await joplin.views.dialogs.addScript(dialogView, "configui/main.css");
     await joplin.views.dialogs.addScript(dialogView, "configui/index.js");
   }
 
+  const config: Config =
+    targetPath === "columnnew"
+      ? {
+          ...openBoard.parsedConfig,
+          columns: [...openBoard.parsedConfig.columns, { name: "New Column" }],
+        }
+      : openBoard.parsedConfig;
+  if (targetPath === "columnnew") targetPath = `columns.${config.columns.length - 1}`
+
   const data: ConfigUIData = {
-    config: openBoard.parsedConfig,
+    config,
     targetPath,
     ruleEditorTypes: getRuleEditorTypes(targetPath),
     allTags: await getAllTags(),
     allNotebooks: (await getAllNotebooks()).map((n) => n.title),
-  }
+  };
 
   const html = `
     <template id="data">
       ${JSON.stringify(data)}
     </template>
     <div id="root"></div>
-  `
+  `;
   await joplin.views.dialogs.setHtml(dialogView, html);
   const result = await joplin.views.dialogs.open(dialogView);
   if (result.id === "ok" && result.formData) {
     const newYaml = result.formData.config.yaml;
-    log(`Received new YAML from config dialog:\n${newYaml}`)
+    log(`Received new YAML from config dialog:\n${newYaml}`);
 
     const wrappedConf = "```kanban\n" + newYaml + "\n```";
-    return wrappedConf
+    return wrappedConf;
   } else {
-    log("Dialog cancelled")
+    log("Dialog cancelled");
   }
 }
 
@@ -108,6 +118,8 @@ async function showBoard() {
         if (messageId === "reload" && actionName === "reload") {
           await reloadConfig(openBoard.configNoteId);
         }
+      } else if (msg.type === "addColumn") {
+        
       } else if (msg.type === "openNote") {
         await joplin.commands.execute("openNote", msg.payload.noteId )
       } else if (msg.type !== "load" && "actionToQuery" in openBoard) {
