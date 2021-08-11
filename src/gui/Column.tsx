@@ -5,7 +5,17 @@ import { Droppable } from "react-beautiful-dnd";
 import type { NoteData } from "../noteData";
 import Card from "./Card";
 
-export default function ({ name, notes, onOpenConfig }: { name: string; notes: NoteData[]; onOpenConfig: () => void }) {
+export default function ({
+  name,
+  notes,
+  onOpenConfig,
+  onOpenNote,
+}: {
+  name: string;
+  notes: NoteData[];
+  onOpenConfig: () => void;
+  onOpenNote: (noteId: string) => void;
+}) {
   const sortedNotes = [...notes].sort((a, b) => (a.title < b.title ? -1 : 1));
   return (
     <Column>
@@ -19,7 +29,7 @@ export default function ({ name, notes, onOpenConfig }: { name: string; notes: N
             {...provided.droppableProps}
           >
             {sortedNotes.map((note, idx) => (
-              <Card key={note.id} note={note} index={idx} />
+              <Card key={note.id} note={note} index={idx} onOpenNote={onOpenNote}/>
             ))}
             {provided.placeholder}
           </DroppableArea>

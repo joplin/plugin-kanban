@@ -30,5 +30,12 @@ export interface MessageAction {
   }
 }
 
+export interface OpenNoteAction {
+ type: "openNote";
+ payload: {
+    noteId: string;
+  }
+}
 
-export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction | MessageAction;
+
+export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction | MessageAction | OpenNoteAction;

@@ -53,12 +53,23 @@ function App() {
     const noteId = drop.draggableId;
     const oldColumnName = drop.source.droppableId;
     const newColumnName = drop.destination.droppableId;
-    dispatch({
-      type: "moveNote",
-      payload: { noteId, oldColumnName, newColumnName },
-    });
-    tempMoveNote(noteId, oldColumnName, newColumnName);
+    if (newColumnName !== oldColumnName) {
+      dispatch({
+        type: "moveNote",
+        payload: { noteId, oldColumnName, newColumnName },
+      });
+      tempMoveNote(noteId, oldColumnName, newColumnName);
+    }
   };
+
+  const onOpenNote = (noteId: string) => {
+    dispatch({
+      type: "openNote",
+      payload: {
+        noteId
+      }
+    })
+  }
 
   return board ? (
     <Container>
@@ -98,6 +109,7 @@ function App() {
                   name={name}
                   notes={waitingForUpdate && tempCol ? tempCol.notes : notes}
                   onOpenConfig={() => dispatch({ type: "settings", payload: { target: `columns.${name}` } })}
+                  onOpenNote={onOpenNote}
                   />
               );
             })}

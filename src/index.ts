@@ -108,6 +108,8 @@ async function showBoard() {
         if (messageId === "reload" && actionName === "reload") {
           await reloadConfig(openBoard.configNoteId);
         }
+      } else if (msg.type === "openNote") {
+        await joplin.commands.execute("openNote", msg.payload.noteId )
       } else if (msg.type !== "load" && "actionToQuery" in openBoard) {
         for (const query of openBoard.actionToQuery(msg)) {
           log(`Executing update: \n${JSON.stringify(query, null, 4)}\n`)

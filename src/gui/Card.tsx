@@ -4,7 +4,7 @@ import { Draggable } from "react-beautiful-dnd";
 
 import type { NoteData } from "../noteData";
 
-export default function ({ note, index }: { note: NoteData; index: number }) {
+export default function ({ note, index, onOpenNote }: { note: NoteData; index: number; onOpenNote: (noteId: string) => void }) {
   return (
     <Draggable draggableId={note.id} index={index}>
       {(provided, snapshot) => (
@@ -13,6 +13,7 @@ export default function ({ note, index }: { note: NoteData; index: number }) {
           dragged={snapshot.isDragging}
           {...provided.dragHandleProps}
           {...provided.draggableProps}
+          onClick={() => onOpenNote(note.id)}
         >
           {note.title}
         </Card>
@@ -30,6 +31,7 @@ const Card = styled.div<{ dragged: boolean }>(({ dragged }) => ({
   borderRadius: "5px",
   border: "2px #DDDDDD solid",
   backgroundColor: "var(--joplin-background-color)",
+  cursor: "pointer !important",
 
   boxShadow: dragged ? "8px 9px 47px 12px rgba(0, 0, 0, 0.41)" : "unset",
   transition: "box-shadow linear 0.2s",
@@ -37,4 +39,7 @@ const Card = styled.div<{ dragged: boolean }>(({ dragged }) => ({
   "&:first-child": {
     marginTop: "0",
   },
+  "&:hover": {
+    filter: "brightness(0.95)"
+  }
 }));

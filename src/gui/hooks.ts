@@ -68,7 +68,7 @@ export function useTempBoard(
   }>({});
 
   const moveNote = (noteId: string, oldCol: string, newCol: string) => {
-    if (!board || !board.columns) return;
+    if (!board || !board.columns || oldCol === newCol) return;
 
     const note = (
       board.columns.find(({ name }) => name === oldCol)?.notes as NoteData[]
