@@ -8,18 +8,18 @@ import Card from "./Card";
 export default function ({
   name,
   notes,
-  onOpenConfig,
+  onContextMenu,
   onOpenNote,
 }: {
   name: string;
   notes: NoteData[];
-  onOpenConfig: () => void;
+  onContextMenu: (ev: React.MouseEvent) => void;
   onOpenNote: (noteId: string) => void;
 }) {
   const sortedNotes = [...notes].sort((a, b) => (a.title < b.title ? -1 : 1));
   return (
     <Column>
-      <ColumnHeader onDoubleClick={() => onOpenConfig()}>{name}</ColumnHeader>
+      <ColumnHeader onContextMenu={onContextMenu}>{name}</ColumnHeader>
 
       <Droppable droppableId={name}>
         {(provided, snapshot) => (
