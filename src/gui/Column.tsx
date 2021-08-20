@@ -70,7 +70,6 @@ const ColumnHeader = styled("div")({
   fontWeight: "bold",
   marginBottom: "20px",
   userSelect: "none",
-  cursor: "pointer",
 });
 
 const DroppableArea = styled("div")<{ draggingOver: boolean }>(

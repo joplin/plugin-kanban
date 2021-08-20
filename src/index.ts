@@ -133,7 +133,11 @@ async function showBoard() {
           await reloadConfig(openBoard.configNoteId);
         }
       } else if (msg.type === "addColumn") {
-        
+        const newConf = await showConfigUI("columnnew")
+        if (newConf) {
+          await setConfigNoteBody(openBoard.configNoteId, newConf)
+          await reloadConfig(openBoard.configNoteId);
+        }
       } else if (msg.type === "openNote") {
         await joplin.commands.execute("openNote", msg.payload.noteId )
       } else if (msg.type !== "load" && "actionToQuery" in openBoard) {
