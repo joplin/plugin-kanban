@@ -56,7 +56,8 @@ export function useRemoteBoard(): [
 }
 
 export function useTempBoard(
-  board?: BoardState
+  board: BoardState | undefined,
+  waitingForUpdate: boolean
 ): [
   BoardState | undefined,
   (noteId: string, oldCol: string, newCol: string) => void
@@ -66,6 +67,10 @@ export function useTempBoard(
     oldCol?: string;
     newCol?: string;
   }>({});
+
+  useEffect(() => {
+    if (!waitingForUpdate) tempState.current = {}
+  }, [waitingForUpdate])
 
   const moveNote = (noteId: string, oldCol: string, newCol: string) => {
     if (!board || !board.columns || oldCol === newCol) return;

@@ -45,7 +45,7 @@ function MessageBox({
 
 function App() {
   const [board, waitingForUpdate, dispatch] = useRemoteBoard();
-  const [tempBoard, tempMoveNote] = useTempBoard(board);
+  const [tempBoard, tempMoveNote] = useTempBoard(board, waitingForUpdate);
 
   const onDragEnd: OnDragEndResponder = (drop) => {
     if (!drop.destination || !board) return;
