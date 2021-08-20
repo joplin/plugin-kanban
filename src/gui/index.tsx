@@ -2,12 +2,6 @@ import React from "react";
 import { render } from "react-dom";
 import styled from "styled-components";
 import { DragDropContext, OnDragEndResponder } from "react-beautiful-dnd";
-import {
-  Menu,
-  Item,
-  useContextMenu
-} from "react-contexify";
-
 import { IoMdSettings, IoMdAdd } from "react-icons/io"
 
 import type { Message } from "../board";
@@ -49,27 +43,9 @@ function MessageBox({
   );
 }
 
-const COLUMN_CONTEXT_MENU_ID = "menu-id";
-function ColumnContextMenu({ onDelete, onEdit }: { onDelete: (idx: number) => void, onEdit: (idx: number) => void }) {
-  return (
-    <Menu id={COLUMN_CONTEXT_MENU_ID}>
-      <Item onClick={({ props: { idx } }) => onEdit(idx)}>
-        Edit
-      </Item>
-      <Item onClick={({ props: { idx } }) => onDelete(idx)}>
-        Delete
-      </Item>
-    </Menu>
-  )
-}
-
 function App() {
   const [board, waitingForUpdate, dispatch] = useRemoteBoard();
   const [tempBoard, tempMoveNote] = useTempBoard(board);
-
-  const { show } = useContextMenu({
-    id: COLUMN_CONTEXT_MENU_ID,
-  });
 
   const onDragEnd: OnDragEndResponder = (drop) => {
     if (!drop.destination || !board) return;
@@ -136,7 +112,8 @@ function App() {
                   key={name}
                   name={name}
                   notes={waitingForUpdate && tempCol ? tempCol.notes : notes}
-                  onContextMenu={(ev) => show(ev, { props: { idx } })}
+                  onOpenConfig={() => dispatch({ type: "settings", payload: { target: `columns.${idx}` } })}
+                  onDeleteCol={() => dispatch({ type: "deleteCol", payload: { col: idx } })}
                   onOpenNote={onOpenNote}
                   />
               );
@@ -144,8 +121,6 @@ function App() {
           </DragDropContext>
         </ColumnsCont>
       }
-
-      <ColumnContextMenu onDelete={() => null} onEdit={(idx) => dispatch({ type: "settings", payload: { target: `columns.${idx}` } })}/>
     </Container>
   ) : (
     <div></div>

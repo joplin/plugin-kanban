@@ -1,4 +1,5 @@
 import joplin from "api";
+import * as yaml from "js-yaml"
 
 import createBoard, {
   Board,
@@ -97,7 +98,7 @@ async function showBoard() {
   if (!view) {
     log(`Opening board for the first time, creating`)
     view = await joplin.views.panels.create("kanban");
-    await joplin.views.panels.setHtml(view, '<div id="root"></div>');
+    await joplin.views.panels.setHtml(view, '<div id="root"></div><div id="menu-root"></div>');
     await joplin.views.panels.addScript(view, "gui/main.css");
     await joplin.views.panels.addScript(view, "gui/index.js");
     joplin.views.panels.onMessage(view, async (msg: Action) => {
@@ -111,6 +112,19 @@ async function showBoard() {
         const newConf = await showConfigUI(target)
         if (newConf) {
           await setConfigNoteBody(openBoard.configNoteId, newConf)
+          await reloadConfig(openBoard.configNoteId);
+        }
+      } else if (msg.type === "deleteCol") {
+        if (openBoard.isValid) {
+          const newConf: Config = {
+            ...openBoard.parsedConfig,
+            columns: [
+              ...openBoard.parsedConfig.columns.slice(0, msg.payload.col),
+              ...openBoard.parsedConfig.columns.slice(msg.payload.col + 1)
+            ]
+          }
+          const wrappedConf = "```kanban\n" + yaml.dump(newConf) + "\n```";
+          await setConfigNoteBody(openBoard.configNoteId, wrappedConf)
           await reloadConfig(openBoard.configNoteId);
         }
       } else if (msg.type === "messageAction") {

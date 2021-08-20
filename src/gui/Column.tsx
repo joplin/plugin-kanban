@@ -3,23 +3,32 @@ import styled from "styled-components";
 import { Droppable } from "react-beautiful-dnd";
 
 import type { NoteData } from "../noteData";
+import ContextMenu from "./ContextMenu";
 import Card from "./Card";
 
 export default function ({
   name,
   notes,
-  onContextMenu,
   onOpenNote,
+  onDeleteCol,
+  onOpenConfig
 }: {
   name: string;
   notes: NoteData[];
-  onContextMenu: (ev: React.MouseEvent) => void;
+  onOpenConfig: () => void;
+  onDeleteCol: () => void;
   onOpenNote: (noteId: string) => void;
 }) {
   const sortedNotes = [...notes].sort((a, b) => (a.title < b.title ? -1 : 1));
+  const handleMenu = (selected: string) => {
+    if (selected === "Edit") onOpenConfig()
+    else if (selected === "Delete") onDeleteCol()
+  };
   return (
     <Column>
-      <ColumnHeader onContextMenu={onContextMenu}>{name}</ColumnHeader>
+      <ContextMenu options={["Edit", "Delete"]} onSelect={handleMenu}>
+        <ColumnHeader>{name}</ColumnHeader>
+      </ContextMenu>
 
       <Droppable droppableId={name}>
         {(provided, snapshot) => (
@@ -29,7 +38,12 @@ export default function ({
             {...provided.droppableProps}
           >
             {sortedNotes.map((note, idx) => (
-              <Card key={note.id} note={note} index={idx} onOpenNote={onOpenNote}/>
+              <Card
+                key={note.id}
+                note={note}
+                index={idx}
+                onOpenNote={onOpenNote}
+              />
             ))}
             {provided.placeholder}
           </DroppableArea>
@@ -56,7 +70,7 @@ const ColumnHeader = styled("div")({
   fontWeight: "bold",
   marginBottom: "20px",
   userSelect: "none",
-  cursor: "pointer"
+  cursor: "pointer",
 });
 
 const DroppableArea = styled("div")<{ draggingOver: boolean }>(

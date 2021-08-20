@@ -41,5 +41,12 @@ export interface AddColumnAction {
  type: "addColumn";
 }
 
+export interface DeleteColAction {
+  type: "deleteCol";
+  payload: {
+    col: number;
+  }
+}
 
-export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction | MessageAction | OpenNoteAction | AddColumnAction;
+
+export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction | MessageAction | OpenNoteAction | AddColumnAction | DeleteColAction;
