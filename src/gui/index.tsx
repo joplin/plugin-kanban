@@ -1,13 +1,16 @@
 import React from "react";
 import { render } from "react-dom";
 import styled from "styled-components";
-import { DragDropContext, OnDragEndResponder } from "react-beautiful-dnd";
-import { IoMdSettings, IoMdAdd } from "react-icons/io"
+import { IoMdSettings, IoMdAdd } from "react-icons/io";
 
-import type { Message } from "../board";
-import { capitalize } from "../utils"
-import { useRemoteBoard, useTempBoard } from "./hooks";
+import { capitalize } from "../utils";
+import { DispatchFn, useRemoteBoard } from "./hooks";
+import { DragDropContext } from "./DragDrop";
 import Column from "./Column";
+import type { Message } from "../board";
+
+export const DispatchContext = React.createContext<DispatchFn>(async () => {});
+export const IsWaitingContext = React.createContext<boolean>(false);
 
 function MessageBox({
   message,
@@ -44,43 +47,51 @@ function MessageBox({
 }
 
 function App() {
-  const [board, waitingForUpdate, dispatch] = useRemoteBoard();
-  const [tempBoard, tempMoveNote] = useTempBoard(board, waitingForUpdate);
+  const [board, dispatch] = useRemoteBoard();
+  // const [tempBoard, tempMoveNote] = useTempBoard(board, waitingForUpdate);
 
-  const onDragEnd: OnDragEndResponder = (drop) => {
-    if (!drop.destination || !board) return;
+  // const onDragEnd: OnDragEndResponder = (drop) => {
+  //   if (!drop.destination || !board) return;
 
-    const noteId = drop.draggableId;
-    const oldColumnName = drop.source.droppableId;
-    const newColumnName = drop.destination.droppableId;
-    if (newColumnName !== oldColumnName) {
-      dispatch({
-        type: "moveNote",
-        payload: { noteId, oldColumnName, newColumnName },
-      });
-      tempMoveNote(noteId, oldColumnName, newColumnName);
-    }
-  };
+  //   const noteId = drop.draggableId;
+  //   const oldColumnName = drop.source.droppableId;
+  //   const newColumnName = drop.destination.droppableId;
+  //   if (newColumnName !== oldColumnName) {
+  //     dispatch({
+  //       type: "moveNote",
+  //       payload: { noteId, oldColumnName, newColumnName },
+  //     });
+  //     tempMoveNote(noteId, oldColumnName, newColumnName);
+  //   }
+  // };
 
-  const onOpenNote = (noteId: string) => {
-    dispatch({
-      type: "openNote",
-      payload: {
-        noteId
-      }
-    })
-  }
+  // const onOpenNote = (noteId: string) => {
+  //   dispatch({
+  //     type: "openNote",
+  //     payload: {
+  //       noteId,
+  //     },
+  //   });
+  // };
 
-  return board ? (
+  const cont = board ? (
     <Container>
       <Header>
         {board.name}
-        <IconCont onClick={() => dispatch({ type: "settings", payload: { target: "filters" } })}>
-          <IoMdSettings size="25px"/>
+        <IconCont
+          onClick={() =>
+            dispatch({ type: "settings", payload: { target: "filters" } })
+          }
+        >
+          <IoMdSettings size="25px" />
         </IconCont>
 
-        <IconCont onClick={() => dispatch({ type: "settings", payload: { target: "columnnew" } })}>
-          <IoMdAdd size="25px"/>
+        <IconCont
+          onClick={() =>
+            dispatch({ type: "settings", payload: { target: "columnnew" } })
+          }
+        >
+          <IoMdAdd size="25px" />
         </IconCont>
       </Header>
 
@@ -99,31 +110,22 @@ function App() {
         ))}
       </MessagesCont>
 
-      {board.columns && 
+      {board.columns && (
         <ColumnsCont>
-          <DragDropContext onDragEnd={onDragEnd}>
-            {board.columns.map(({ name, notes }, idx) => {
-              const tempCol = tempBoard?.columns?.find(
-                ({ name: n }) => n === name
-              );
-
-              return (
-                <Column
-                  key={name}
-                  name={name}
-                  notes={waitingForUpdate && tempCol ? tempCol.notes : notes}
-                  onOpenConfig={() => dispatch({ type: "settings", payload: { target: `columns.${idx}` } })}
-                  onDeleteCol={() => dispatch({ type: "deleteCol", payload: { col: idx } })}
-                  onOpenNote={onOpenNote}
-                  />
-              );
-            })}
-          </DragDropContext>
+          {board.columns.map(({ name, notes }) => (
+            <Column key={name} name={name} notes={notes} />
+          ))}
         </ColumnsCont>
-      }
+      )}
     </Container>
   ) : (
     <div></div>
+  );
+
+  return (
+    <DispatchContext.Provider value={dispatch}>
+      <DragDropContext>{cont}</DragDropContext>
+    </DispatchContext.Provider>
   );
 }
 
@@ -145,7 +147,7 @@ const Header = styled("div")({
   marginBottom: "10px",
   display: "flex",
   flexDirection: "row",
-  alignItems: "center"
+  alignItems: "center",
 });
 
 const ColumnsCont = styled("div")({
@@ -153,7 +155,7 @@ const ColumnsCont = styled("div")({
   alignItems: "stretch",
   flexGrow: 1,
   overflowY: "auto",
-  marginBottom: "20px"
+  marginBottom: "20px",
 });
 
 const IconCont = styled("div")({
@@ -165,19 +167,20 @@ const IconCont = styled("div")({
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  cursor: "pointer"
-})
+  cursor: "pointer",
+});
 
 const MessagesCont = styled("div")({
   padding: "0 15px",
   marginBottom: "30px",
-})
+});
 
-const messageColors: { [k in Message["severity"]]: [string, string, string] } = {
-  info: ["#cfe2ff", "#b6d4fe", "#084298"],
-  warning: ["#fff3cd", "#ffecb5", "#664d03"],
-  error: ["#f8d7da", "#f5c2c7", "#842029"],
-};
+const messageColors: { [k in Message["severity"]]: [string, string, string] } =
+  {
+    info: ["#cfe2ff", "#b6d4fe", "#084298"],
+    warning: ["#fff3cd", "#ffecb5", "#664d03"],
+    error: ["#f8d7da", "#f5c2c7", "#842029"],
+  };
 
 const MessageBoxContainer = styled("div")<{ severity: Message["severity"] }>(
   ({ severity }) => ({
@@ -197,20 +200,20 @@ const MessageBoxContainer = styled("div")<{ severity: Message["severity"] }>(
 );
 
 const MessageTitle = styled("div")({
-  flexGrow: 1
-})
+  flexGrow: 1,
+});
 
 const MessageDetailsWrapper = styled("details")({
-  width: "100%"
-})
+  width: "100%",
+});
 
 const MessageSummary = styled("summary")({
   display: "flex",
-  alignItems: "center"
-})
+  alignItems: "center",
+});
 
 const MessageDetail = styled("code")({
   display: "block",
   paddingTop: "15px",
   whiteSpace: "pre-wrap",
-})
+});

@@ -44,7 +44,7 @@ export interface AddColumnAction {
 export interface DeleteColAction {
   type: "deleteCol";
   payload: {
-    col: number;
+    colName: string;
   }
 }
 

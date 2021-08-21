@@ -53,7 +53,16 @@ async function showConfigUI(targetPath: string) {
           columns: [...openBoard.parsedConfig.columns, { name: "New Column" }],
         }
       : openBoard.parsedConfig;
-  if (targetPath === "columnnew") targetPath = `columns.${config.columns.length - 1}`
+
+  if (targetPath.startsWith("columns.")) {
+    const [, colName] = targetPath.split(".", 2);
+    const colIdx = openBoard.parsedConfig.columns.findIndex(
+      ({ name }) => name === colName
+    );
+    targetPath = `columns.${colIdx}`
+  }
+  if (targetPath === "columnnew")
+    targetPath = `columns.${config.columns.length - 1}`;
 
   const data: ConfigUIData = {
     config,
@@ -116,11 +125,14 @@ async function showBoard() {
         }
       } else if (msg.type === "deleteCol") {
         if (openBoard.isValid) {
+          const colIdx = openBoard.parsedConfig.columns.findIndex(
+            ({ name }) => name === msg.payload.colName
+          );
           const newConf: Config = {
             ...openBoard.parsedConfig,
             columns: [
-              ...openBoard.parsedConfig.columns.slice(0, msg.payload.col),
-              ...openBoard.parsedConfig.columns.slice(msg.payload.col + 1)
+              ...openBoard.parsedConfig.columns.slice(0, colIdx),
+              ...openBoard.parsedConfig.columns.slice(colIdx + 1)
             ]
           }
           const wrappedConf = "```kanban\n" + yaml.dump(newConf) + "\n```";

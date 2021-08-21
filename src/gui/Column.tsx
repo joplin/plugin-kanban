@@ -1,28 +1,22 @@
-import React from "react";
+import React, { useContext } from "react";
 import styled from "styled-components";
-import { Droppable } from "react-beautiful-dnd";
 
 import type { NoteData } from "../noteData";
+import { DispatchContext } from "./index";
 import ContextMenu from "./ContextMenu";
-import Card from "./Card";
+import DraggableCard from "./DraggableCard";
+import { useDroppableArea } from "./DragDrop";
 
-export default function ({
-  name,
-  notes,
-  onOpenNote,
-  onDeleteCol,
-  onOpenConfig
-}: {
-  name: string;
-  notes: NoteData[];
-  onOpenConfig: () => void;
-  onDeleteCol: () => void;
-  onOpenNote: (noteId: string) => void;
-}) {
+export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
+  const dispatch = useContext(DispatchContext);
+  const { dropRef, handlerId, isOver } = useDroppableArea({ colName: name })
+
   const sortedNotes = [...notes].sort((a, b) => (a.title < b.title ? -1 : 1));
+
   const handleMenu = (selected: string) => {
-    if (selected === "Edit") onOpenConfig()
-    else if (selected === "Delete") onDeleteCol()
+    if (selected === "Edit")
+      dispatch({ type: "settings", payload: { target: `columns.${name}` } });
+    else if (selected === "Delete") dispatch({ type: "deleteCol", payload: { colName: name } })
   };
   return (
     <Column>
@@ -30,25 +24,15 @@ export default function ({
         <ColumnHeader>{name}</ColumnHeader>
       </ContextMenu>
 
-      <Droppable droppableId={name}>
-        {(provided, snapshot) => (
-          <DroppableArea
-            draggingOver={snapshot.isDraggingOver}
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-          >
-            {sortedNotes.map((note, idx) => (
-              <Card
-                key={note.id}
-                note={note}
-                index={idx}
-                onOpenNote={onOpenNote}
-              />
-            ))}
-            {provided.placeholder}
-          </DroppableArea>
-        )}
-      </Droppable>
+      <DroppableArea
+        draggingOver={isOver}
+        ref={dropRef}
+        data-handler-id={handlerId}
+      >
+        {sortedNotes.map((note, idx) => (
+          <DraggableCard key={note.id} colName={name} note={note} index={idx} />
+        ))}
+      </DroppableArea>
     </Column>
   );
 }

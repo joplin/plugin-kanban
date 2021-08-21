@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 import type { NoteData } from "../noteData";
 import type { Action } from "../actions";
@@ -15,22 +15,20 @@ export interface BoardState {
 
 interface State {
   board?: BoardState;
-  waitingForUpdate: boolean;
 }
+
+export type DispatchFn = (action: Action) => Promise<void>
 
 export function useRemoteBoard(): [
   BoardState | undefined,
-  boolean,
-  (action: Action) => void
+  DispatchFn
 ] {
-  const [state, setState] = useState<State>({ waitingForUpdate: false });
+  const [state, setState] = useState<State>({});
 
-  const dispatch = (action: Action) => {
-    setState({ ...state, waitingForUpdate: true });
-    webviewApi.postMessage(action).then((newBoard: BoardState) => {
-      setState({ board: newBoard, waitingForUpdate: false });
-    });
-  };
+  const dispatch: DispatchFn = useCallback(async (action: Action) => {
+    const newBoard: BoardState = await webviewApi.postMessage(action)
+    setState({ board: newBoard });
+  }, []);
 
   const shouldPoll = useRef(true);
   const poll = () => {
@@ -38,7 +36,7 @@ export function useRemoteBoard(): [
       if (!newBoard) {
         shouldPoll.current = false
       } else {
-        setState({ board: newBoard, waitingForUpdate: false });
+        setState({ board: newBoard });
         if (shouldPoll.current === true) poll();
       }
     });
@@ -52,7 +50,7 @@ export function useRemoteBoard(): [
     };
   }, []);
 
-  return [state.board, state.waitingForUpdate, dispatch];
+  return [state.board, dispatch];
 }
 
 export function useTempBoard(

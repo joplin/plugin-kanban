@@ -1,32 +1,54 @@
 import React from "react";
 import styled from "styled-components";
-import { Draggable } from "react-beautiful-dnd";
+import { IoMdPricetag } from "react-icons/io";
+import { IoCalendarOutline } from "react-icons/io5";
 
 import type { NoteData } from "../noteData";
 
-export default function ({ note, index, onOpenNote }: { note: NoteData; index: number; onOpenNote: (noteId: string) => void }) {
-  return (
-    <Draggable draggableId={note.id} index={index}>
-      {(provided, snapshot) => (
-        <Card
-          ref={provided.innerRef}
-          dragged={snapshot.isDragging}
-          {...provided.dragHandleProps}
-          {...provided.draggableProps}
-          onClick={() => onOpenNote(note.id)}
-        >
-          {note.title}
-        </Card>
-      )}
-    </Draggable>
-  );
-}
+export default React.forwardRef<HTMLDivElement, { note: NoteData }>(
+  ({ note }, ref) => {
+    const { title, tags, due } = note;
 
-const Card = styled.div<{ dragged: boolean }>(({ dragged }) => ({
+    const renderExtra = (
+      key: number,
+      icon: React.ReactNode,
+      text: string,
+      color: string = "#666666"
+    ) => (
+      <ExtraItem key={key} color={color}>
+        <IconCont>{icon}</IconCont>
+        {text}
+      </ExtraItem>
+    );
+    const extras: [React.ReactNode, string, string?][] = tags.map((tag) => [
+      <IoMdPricetag size="1rem" />,
+      tag,
+    ]);
+    if (due > 0) {
+      const dueDate = new Date(due);
+      const dateStr = `${dueDate.getMonth() + 1}.${dueDate.getDate()}`;
+      const daysLeft = (due - Date.now()) / (1000 * 60 * 60 * 24);
+      const color = daysLeft < 3 ? "red" : undefined;
+      extras.push([<IoCalendarOutline size="1rem" />, dateStr, color]);
+    }
+
+    return (
+      <CardDiv ref={ref}>
+        {title}
+        <ExtrasContainer>
+          {extras.map((e, idx) => renderExtra(idx, ...e))}
+        </ExtrasContainer>
+      </CardDiv>
+    );
+  }
+);
+
+const CardDiv = styled.div({
   boxSizing: "border-box",
   padding: "15px",
-  marginTop: "20px",
-  fontSize: "20px",
+  paddingBottom: "10px",
+  marginBottom: "20px",
+  fontSize: "1.2rem",
   borderRadius: "5px",
   border: "2px #DDDDDD solid",
   backgroundColor: "var(--joplin-background-color)",
@@ -34,13 +56,28 @@ const Card = styled.div<{ dragged: boolean }>(({ dragged }) => ({
   overflow: "hidden",
   overflowWrap: "anywhere",
 
-  boxShadow: dragged ? "8px 9px 47px 12px rgba(0, 0, 0, 0.41)" : "unset",
   transition: "box-shadow linear 0.2s",
 
-  "&:first-child": {
-    marginTop: "0",
-  },
   "&:hover": {
-    filter: "brightness(0.95)"
-  }
+    filter: "brightness(0.95)",
+  },
+});
+
+const ExtrasContainer = styled.div({
+  display: "flex",
+  marginTop: "7px",
+  flexDirection: "row",
+  flexWrap: "wrap",
+});
+
+const ExtraItem = styled.div<{ color: string }>(({ color }) => ({
+  fontSize: "0.8rem",
+  color,
+  display: "flex",
+  alignItems: "center",
+  marginRight: "10px",
 }));
+
+const IconCont = styled.span({
+  marginRight: "4px",
+});
