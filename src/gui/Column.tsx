@@ -11,8 +11,6 @@ export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
   const dispatch = useContext(DispatchContext);
   const { dropRef, handlerId, isOver } = useDroppableArea({ colName: name, notesLength: notes.length })
 
-  // const sortedNotes = [...notes].sort((a, b) => (a.title < b.title ? -1 : 1));
-
   const handleMenu = (selected: string) => {
     if (selected === "Edit")
       dispatch({ type: "settings", payload: { target: `columns.${name}` } });

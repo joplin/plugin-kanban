@@ -44,6 +44,7 @@ interface ValidBoard extends BoardBase {
   parsedConfig: Config;
   columnNames: string[];
   rootNotebookName: string;
+  hiddenTags: string[];
   sortNoteIntoColumn(note: NoteData): string | null;
   actionToQuery(action: Action, boardState: BoardState): UpdateQuery[];
 }
@@ -88,7 +89,8 @@ export async function getBoardState(board?: Board): Promise<BoardState> {
 
   const state: BoardState = {
     name: board.boardName,
-    messages: []
+    messages: [],
+    hiddenTags: []
   }
 
   if (board.isValid) {
@@ -112,6 +114,7 @@ export async function getBoardState(board?: Board): Promise<BoardState> {
       })
     );
     state.columns = sortedColumns
+    state.hiddenTags = board.hiddenTags
   } else {
     state.messages = board.errorMessages
   }
@@ -219,12 +222,15 @@ export default async function ({
     (await rules.notebookPath(rootNotebookPath, "", configObj)).filterNote
   ];
 
+  let hiddenTags: string[] = []
   for (const key in configObj.filters) {
     let val = configObj.filters[key];
     if (typeof val === "boolean") val = `${val}`;
     if (val && key in rules) {
       const rule = await rules[key](val, rootNotebookPath, configObj);
       baseFilters.push(rule.filterNote);
+      if (key === "tag") hiddenTags.push(val as string)
+      else if (key === "tags") hiddenTags = [...hiddenTags, ...(val as string[])]
     }
   }
 
@@ -247,6 +253,8 @@ export default async function ({
         if (val && key in rules) {
           const rule = await rules[key](val, rootNotebookPath, configObj);
           newCol.rules.push(rule);
+          if (key === "tag") hiddenTags.push(val as string)
+          else if (key === "tags") hiddenTags = [...hiddenTags, ...(val as string[])]
         }
       }
       regularColumns.push(newCol);
@@ -258,6 +266,7 @@ export default async function ({
     isValid: true,
     rootNotebookName,
     parsedConfig: configObj,
+    hiddenTags,
     columnNames: configObj.columns.map(({ name }) => name),
 
     sortNoteIntoColumn(note: NoteData) {

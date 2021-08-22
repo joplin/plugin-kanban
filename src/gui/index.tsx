@@ -48,31 +48,13 @@ function MessageBox({
 
 function App() {
   const [board, dispatch] = useRemoteBoard();
-  // const [tempBoard, tempMoveNote] = useTempBoard(board, waitingForUpdate);
-
-  // const onDragEnd: OnDragEndResponder = (drop) => {
-  //   if (!drop.destination || !board) return;
-
-  //   const noteId = drop.draggableId;
-  //   const oldColumnName = drop.source.droppableId;
-  //   const newColumnName = drop.destination.droppableId;
-  //   if (newColumnName !== oldColumnName) {
-  //     dispatch({
-  //       type: "moveNote",
-  //       payload: { noteId, oldColumnName, newColumnName },
-  //     });
-  //     tempMoveNote(noteId, oldColumnName, newColumnName);
-  //   }
-  // };
-
-  // const onOpenNote = (noteId: string) => {
-  //   dispatch({
-  //     type: "openNote",
-  //     payload: {
-  //       noteId,
-  //     },
-  //   });
-  // };
+  const notesToShow = board?.columns?.map((col) => ({
+    ...col,
+    notes: col.notes.map((note) => ({
+      ...note,
+      tags: note.tags.filter((tag) => !board.hiddenTags.includes(tag))
+    }))
+  }))
 
   const cont = board ? (
     <Container>
@@ -112,7 +94,7 @@ function App() {
 
       {board.columns && (
         <ColumnsCont>
-          {board.columns.map(({ name, notes }) => (
+          {notesToShow?.map(({ name, notes }) => (
             <Column key={name} name={name} notes={notes} />
           ))}
         </ColumnsCont>
