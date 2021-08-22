@@ -1,7 +1,8 @@
 import React from "react";
 import styled from "styled-components";
 import { IoIosRemoveCircleOutline } from "react-icons/io";
-import Select from "react-select";
+// import Select from "react-select";
+import CreatableSelect from 'react-select/creatable';
 
 import type { RuleValue } from "../board";
 import { capitalize } from "../utils";
@@ -39,7 +40,7 @@ export default function ({
     );
   else if (editorType === "tags")
     inputEl = (
-      <Select
+      <CreatableSelect
         styles={{ container: (p) => ({ ...p, width: "100%" }) }}
         isMulti
         value={
@@ -54,23 +55,33 @@ export default function ({
         onChange={(sel) => onChange(sel.map((s) => s.value))}
       />
     );
-  else if (editorType === "notebook")
+  else if (editorType === "notebook") {
+    const options = allNotebooks.map((t) => ({
+      value: t,
+      label: t,
+    }));
+
+    if (ruleType === "rootNotebookPath") {
+      options.push({
+        value: "/",
+        label: "All notebooks"
+      })
+    }
+
     inputEl = (
-      <Select
+      <CreatableSelect
         styles={{ container: (p) => ({ ...p, width: "100%" }) }}
         isClearable={false}
         value={
           ruleValue && allNotebooks.includes(ruleValue as string)
-            ? { value: ruleValue, label: ruleValue }
+            ? { value: ruleValue, label: ruleType === "rootNotebookPath" && ruleValue === "/" ? "All notebooks" : ruleValue }
             : undefined
         }
-        options={allNotebooks.map((t) => ({
-          value: t,
-          label: t,
-        }))}
+        options={options}
         onChange={(sel) => sel && onChange(sel.value)}
       />
     );
+  }
   else
     inputEl = (
       <Input

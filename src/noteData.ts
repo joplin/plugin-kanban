@@ -50,7 +50,7 @@ async function search(query: string): Promise<NoteData[]> {
   let page = 1;
   while (true) {
     const { items: notes, has_more: hasMore }: Response = await joplin.data.get(
-      ["search"],
+      query === "" ? ["notes"] : ["search"],
       { query, page, fields }
     );
 
@@ -81,7 +81,7 @@ async function search(query: string): Promise<NoteData[]> {
 export async function searchNotes(
   rootNotebookName: string
 ): Promise<NoteData[]> {
-  const query = `notebook:"${rootNotebookName}"`;
+  const query = rootNotebookName === "" ? "" : `notebook:"${rootNotebookName}"`;
   return search(query);
 }
 

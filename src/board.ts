@@ -219,8 +219,11 @@ export default async function ({
 
   const baseFilters: Rule["filterNote"][] = [
     (await rules.excludeNoteId(configNoteId, rootNotebookPath, configObj)).filterNote,
-    (await rules.notebookPath(rootNotebookPath, "", configObj)).filterNote
   ];
+
+  if (rootNotebookPath !== "/") {
+    baseFilters.push((await rules.notebookPath(rootNotebookPath, "", configObj)).filterNote)
+  }
 
   let hiddenTags: string[] = []
   for (const key in configObj.filters) {

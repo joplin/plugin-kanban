@@ -13,10 +13,10 @@ import createBoard, {
 import {
   getConfigNote,
   setConfig,
-  setAfterConfig,
   executeUpdateQuery,
   getAllTags,
   getAllNotebooks,
+  setAfterConfig
 } from "./noteData";
 import { Action } from "./actions";
 import { getRuleEditorTypes } from "./rules"
@@ -86,7 +86,8 @@ async function showConfigUI(targetPath: string) {
     const newYaml = result.formData.config.yaml;
     log(`Received new YAML from config dialog:\n${newYaml}`);
 
-    return newYaml;
+    const wrappedConf = "```kanban\n" + newYaml + "\n```";
+    return wrappedConf;
   } else {
     log("Dialog cancelled");
   }
@@ -136,7 +137,8 @@ async function showBoard() {
               ...openBoard.parsedConfig.columns.slice(colIdx + 1)
             ]
           }
-          await setConfig(openBoard.configNoteId, yaml.dump(newConf))
+          const wrappedConf = "```kanban\n" + yaml.dump(newConf) + "\n```";
+          await setConfig(openBoard.configNoteId, wrappedConf)
           await reloadConfig(openBoard.configNoteId);
         }
       } else if (msg.type === "messageAction") {
