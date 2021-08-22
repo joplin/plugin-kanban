@@ -9,9 +9,9 @@ import { useDroppableArea } from "./DragDrop";
 
 export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
   const dispatch = useContext(DispatchContext);
-  const { dropRef, handlerId, isOver } = useDroppableArea({ colName: name })
+  const { dropRef, handlerId, isOver } = useDroppableArea({ colName: name, notesLength: notes.length })
 
-  const sortedNotes = [...notes].sort((a, b) => (a.title < b.title ? -1 : 1));
+  // const sortedNotes = [...notes].sort((a, b) => (a.title < b.title ? -1 : 1));
 
   const handleMenu = (selected: string) => {
     if (selected === "Edit")
@@ -29,7 +29,7 @@ export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
         ref={dropRef}
         data-handler-id={handlerId}
       >
-        {sortedNotes.map((note, idx) => (
+        {notes.map((note, idx) => (
           <DraggableCard key={note.id} colName={name} note={note} index={idx} />
         ))}
       </DroppableArea>

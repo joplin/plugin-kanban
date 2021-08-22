@@ -18,6 +18,7 @@ export default function ({ note, colName, index }: DraggableCardProps) {
     contentRef: cardRef,
     colName,
     noteId: note.id,
+    index,
   });
 
   const { display } = useDraggableCard({ colName, index, note, ref });

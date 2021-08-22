@@ -153,7 +153,8 @@ async function showBoard() {
       } else if (msg.type === "openNote") {
         await joplin.commands.execute("openNote", msg.payload.noteId )
       } else if (msg.type !== "load" && "actionToQuery" in openBoard) {
-        for (const query of openBoard.actionToQuery(msg)) {
+        const oldState: BoardState = await getBoardState(openBoard);
+        for (const query of openBoard.actionToQuery(msg, oldState)) {
           log(`Executing update: \n${JSON.stringify(query, null, 4)}\n`)
           await executeUpdateQuery(query);
         }

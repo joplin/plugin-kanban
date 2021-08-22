@@ -23,10 +23,12 @@ export interface NoteData {
   isTodo: boolean;
   isCompleted: boolean;
   due: number; 
+  order: number;
+  createdTime: number;
 }
 
 async function search(query: string): Promise<NoteData[]> {
-  const fields = ["id", "title", "parent_id", "is_todo", "todo_completed", "todo_due"];
+  const fields = ["id", "title", "parent_id", "is_todo", "todo_completed", "todo_due", "order", "created_time"];
 
   type RawNote = {
     id: string;
@@ -35,6 +37,8 @@ async function search(query: string): Promise<NoteData[]> {
     is_todo: 0 | 1;
     todo_completed: 0 | 1;
     todo_due: number;
+    order: number;
+    created_time: number;
   };
 
   type Response = {
@@ -50,7 +54,7 @@ async function search(query: string): Promise<NoteData[]> {
       { query, page, fields }
     );
 
-    for (const { id, title, parent_id, is_todo, todo_completed, todo_due } of notes) {
+    for (const { id, title, parent_id, is_todo, todo_completed, todo_due, order, created_time } of notes) {
       const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
         ({ title }: { title: string }) => title
       );
@@ -61,7 +65,9 @@ async function search(query: string): Promise<NoteData[]> {
         isTodo: !!is_todo,
         isCompleted: !!todo_completed,
         notebookId: parent_id,
-        due: todo_due
+        due: todo_due,
+        order: order === 0 ? created_time : order,
+        createdTime: created_time
       });
     }
 

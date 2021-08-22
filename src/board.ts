@@ -45,7 +45,7 @@ interface ValidBoard extends BoardBase {
   columnNames: string[];
   rootNotebookName: string;
   sortNoteIntoColumn(note: NoteData): string | null;
-  actionToQuery(action: Action): UpdateQuery[];
+  actionToQuery(action: Action, boardState: BoardState): UpdateQuery[];
 }
 
 interface InvalidBoard extends BoardBase {
@@ -81,6 +81,14 @@ export async function getBoardState(board?: Board): Promise<BoardState> {
 
     const sortedColumns: BoardState["columns"] = Object.entries(sortedNotes).map(
       ([name, notes]) => ({ name, notes })
+    );
+
+    Object.values(sortedColumns).forEach((col) =>
+      col.notes.sort((a, b) => {
+        if (a.order < b.order) return +1
+        if (a.order > b.order) return -1
+        return a.createdTime < b.createdTime ? +1 : -1
+      })
     );
     state.columns = sortedColumns
   } else {
@@ -244,10 +252,10 @@ export default async function ({
       return null;
     },
 
-    actionToQuery(action: Action) {
+    actionToQuery(action: Action, boardState: BoardState) {
       switch (action.type) {
         case "moveNote":
-          const { noteId, newColumnName, oldColumnName } = action.payload;
+          const { noteId, newColumnName, oldColumnName, newIndex } = action.payload;
           const newCol = allColumns.find(
             ({ name }) => name === newColumnName
           ) as Column;
@@ -257,13 +265,30 @@ export default async function ({
 
           const unsetQueries = oldCol.rules.flatMap((r) => r.unset(noteId));
           const setQueries = newCol.rules.flatMap((r) => r.set(noteId));
+          const queries: UpdateQuery[] = [...unsetQueries, ...setQueries]
 
-          return [...unsetQueries, ...setQueries];
+          const setOrder = (note: string, order: number) => queries.push({ type: "put", path: ["notes", note], body: { order } })
+          const notesInCol = boardState.columns?.find((col) => col.name === newColumnName)?.notes as NoteData[]
+          const notes = notesInCol.filter((note) => note.id !== noteId)
+          if (notes.length > 0) {
+            if (newIndex === 0) {
+              setOrder(noteId, notes[0].order + 1)
+            } else if (newIndex >= notes.length) {
+              setOrder(noteId, notes[notes.length - 1].order - 1)
+            } else {
+              const newOrder = notes[newIndex - 1].order - 1
+              setOrder(noteId, newOrder)
+              const notesAfter = notesInCol.slice(newIndex)
+              notesAfter.forEach((note, idx) => note.id !== noteId && setOrder(note.id, newOrder - 1 - idx))
+            }
+          }
+
+          return queries;
         default:
           throw new Error("Unknown action " + action.type);
       }
     },
   };
 
-  return  board ;
+  return  board;
 }

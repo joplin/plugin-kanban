@@ -4,6 +4,7 @@ export interface MoveNoteAction {
     noteId: string;
     oldColumnName: string;
     newColumnName: string;
+    newIndex: number;
   };
 }
 

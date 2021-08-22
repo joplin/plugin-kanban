@@ -44,7 +44,7 @@ export function DragDropContext({ children }: React.PropsWithChildren<{}>) {
   );
 }
 
-export function useDroppableArea({ colName }: { colName: string }) {
+export function useDroppableArea({ colName, notesLength }: { colName: string; notesLength: number }) {
   const dispatch = useContext(DispatchContext);
   const [, setDragWaiting] = useContext(IsDragWaitingContext);
 
@@ -54,7 +54,8 @@ export function useDroppableArea({ colName }: { colName: string }) {
       handlerId: monitor.getHandlerId(),
       isOver: monitor.isOver(),
     }),
-    drop(item: DragItem) {
+    drop(item: DragItem, monitor: DropTargetMonitor) {
+      if (monitor.didDrop()) return
       setDragWaiting(true);
       dispatch({
         type: "moveNote",
@@ -62,6 +63,7 @@ export function useDroppableArea({ colName }: { colName: string }) {
           noteId: item.noteData.id,
           oldColumnName: item.oldColName,
           newColumnName: colName,
+          newIndex: notesLength,
         },
       }).then(() => setDragWaiting(false));
     },
@@ -75,11 +77,13 @@ export function useDroppableCard({
   colName,
   contentRef,
   ref,
+  index,
 }: {
   noteId: string;
   colName: string;
   ref: React.RefObject<HTMLDivElement>;
   contentRef: React.RefObject<HTMLDivElement>;
+  index: number;
 }) {
   const dispatch = useContext(DispatchContext);
   const [placeholder, setPlaceholder] = useState<PlaceholderData | null>(null);
@@ -103,8 +107,8 @@ export function useDroppableCard({
         (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
       const clientOffset = monitor.getClientOffset() as XYCoord;
       const hoverClientY = clientOffset.y - hoverBoundingRect.top;
-
       const pos = hoverClientY < hoverMiddleY ? PhPos.ABOVE : PhPos.BELOW;
+
       setPlaceholder({
         noteData: item.noteData,
         pos,
@@ -112,6 +116,8 @@ export function useDroppableCard({
     },
 
     drop(item: DragItem) {
+      const pos = (placeholder as PlaceholderData).pos
+      const newIndex = pos === PhPos.ABOVE ? index : index + 1
       setDragWaiting(true);
       dispatch({
         type: "moveNote",
@@ -119,6 +125,7 @@ export function useDroppableCard({
           noteId: item.noteData.id,
           oldColumnName: item.oldColName,
           newColumnName: colName,
+          newIndex
         },
       }).then(() => setDragWaiting(false));
     },
