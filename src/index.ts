@@ -8,10 +8,12 @@ import createBoard, {
   getYamlConfig,
   getBoardState,
   parseConfigNote,
+  getMdTable
 } from "./board";
 import {
   getConfigNote,
-  setConfigNoteBody,
+  setConfig,
+  setAfterConfig,
   executeUpdateQuery,
   getAllTags,
   getAllNotebooks,
@@ -84,8 +86,7 @@ async function showConfigUI(targetPath: string) {
     const newYaml = result.formData.config.yaml;
     log(`Received new YAML from config dialog:\n${newYaml}`);
 
-    const wrappedConf = "```kanban\n" + newYaml + "\n```";
-    return wrappedConf;
+    return newYaml;
   } else {
     log("Dialog cancelled");
   }
@@ -120,7 +121,7 @@ async function showBoard() {
         const {target} = msg.payload
         const newConf = await showConfigUI(target)
         if (newConf) {
-          await setConfigNoteBody(openBoard.configNoteId, newConf)
+          await setConfig(openBoard.configNoteId, newConf)
           await reloadConfig(openBoard.configNoteId);
         }
       } else if (msg.type === "deleteCol") {
@@ -135,8 +136,7 @@ async function showBoard() {
               ...openBoard.parsedConfig.columns.slice(colIdx + 1)
             ]
           }
-          const wrappedConf = "```kanban\n" + yaml.dump(newConf) + "\n```";
-          await setConfigNoteBody(openBoard.configNoteId, wrappedConf)
+          await setConfig(openBoard.configNoteId, yaml.dump(newConf))
           await reloadConfig(openBoard.configNoteId);
         }
       } else if (msg.type === "messageAction") {
@@ -147,7 +147,7 @@ async function showBoard() {
       } else if (msg.type === "addColumn") {
         const newConf = await showConfigUI("columnnew")
         if (newConf) {
-          await setConfigNoteBody(openBoard.configNoteId, newConf)
+          await setConfig(openBoard.configNoteId, newConf)
           await reloadConfig(openBoard.configNoteId);
         }
       } else if (msg.type === "openNote") {
@@ -167,6 +167,8 @@ async function showBoard() {
         const { error } = parseConfigNote(currentYaml)
         newState.messages.push(error || { id: "reload", severity: "warning", title: "The configuration has changed, would you like to reload the board?", actions: ["reload"] })
       }
+
+      if (msg.type !== "poll") setAfterConfig(openBoard.configNoteId, getMdTable(newState))
 
       log(`Sending back update to webview: \n${JSON.stringify(newState, null, 4)}\n`)
       return newState;

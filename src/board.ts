@@ -62,6 +62,27 @@ export const getYamlConfig = (boardNoteBody: string): string | null =>  {
   return match[1];
 }
 
+export function getMdTable(boardState: BoardState): string {
+  if (!boardState.columns) return ''
+
+  const separator = '---'
+  const colNames = boardState.columns.map((col) => col.name)
+
+  const header = colNames.join(" | ") + "\n"
+  const headerSep = colNames.map(() => separator).join(' | ') + "\n"
+
+  const rows: string[][] = []
+  const numRows = Math.max(...boardState.columns.map((c) => c.notes.length))
+  for (let i = 0; i < numRows; i++) {
+    rows[i] = boardState.columns.map((col) => col.notes[i]?.title || "")
+  }
+
+  const body = rows.map((r) => "| "+ r.join(" | ") + " |").join("\n") + "\n"
+  const timestamp = `_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`
+
+  return header + headerSep + body + timestamp
+}
+
 export async function getBoardState(board?: Board): Promise<BoardState> {
   if (!board) throw new Error("No open board");
 
@@ -290,5 +311,5 @@ export default async function ({
     },
   };
 
-  return  board;
+  return board;
 }

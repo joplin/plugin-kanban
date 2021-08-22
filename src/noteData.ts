@@ -100,13 +100,27 @@ export function getConfigNote(noteId: string): Promise<ConfigNote> {
   return joplin.data.get(["notes", noteId], { fields });
 }
 
-export async function setConfigNoteBody(noteId: string, newBody: string) {
+async function setConfigNoteBody(noteId: string, newBody: string) {
   const { id: selectedNoteId } = await joplin.workspace.selectedNote()
   if (selectedNoteId === noteId) {
     await joplin.commands.execute("editor.setText", newBody)
   }
 
   await joplin.data.put(["notes", noteId], null, { body: newBody });
+}
+
+export async function setConfig(noteId: string, newConfig: string) {
+  const { body: oldBody } = await getConfigNote(noteId)
+  const pat = /([\s\S]*?)```kanban([\s\S]*?)```([\s\S]*)/
+  const newBody = oldBody.replace(pat, `$1${newConfig}$3`)
+  if (oldBody !== newBody) await setConfigNoteBody(noteId, newBody)
+}
+
+export async function setAfterConfig(noteId: string, afterConfig: string) {
+  const { body: oldBody } = await getConfigNote(noteId)
+  const pat = /([\s\S]*?```kanban[\s\S]*?```)([\s\S]*)/
+  const newBody = oldBody.replace(pat, `$1\n\n${afterConfig}`)
+  if (oldBody !== newBody) await setConfigNoteBody(noteId, newBody)
 }
 
 export async function getTagId(tagName: string): Promise<string | undefined> {
