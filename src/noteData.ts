@@ -92,7 +92,13 @@ export async function getNoteById(id: string): Promise<NoteData> {
 
 export async function executeUpdateQuery(updateQuery: UpdateQuery) {
   const { type, path, body = null } = updateQuery;
-  await joplin.data[type](path, null, body);
+  if (type === "put" && path[0] === "notes") { // need to save updated_time
+    const{ updated_time, user_updated_time } = await joplin.data.get(path, { fields: ["updated_time", "user_updated_time"]});
+    const patchedBody = { ...body, updated_time, user_updated_time }
+    await joplin.data.put(path, null, patchedBody);
+  } else {
+    await joplin.data[type](path, null, body);
+  }
 }
 
 export function getConfigNote(noteId: string): Promise<ConfigNote> {
