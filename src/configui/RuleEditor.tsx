@@ -2,7 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { IoIosRemoveCircleOutline } from "react-icons/io";
 // import Select from "react-select";
-import CreatableSelect from 'react-select/creatable';
+import CreatableSelect from "react-select/creatable";
 
 import type { RuleValue } from "../board";
 import { capitalize } from "../utils";
@@ -64,8 +64,8 @@ export default function ({
     if (ruleType === "rootNotebookPath") {
       options.push({
         value: "/",
-        label: "All notebooks"
-      })
+        label: "All notebooks",
+      });
     }
 
     inputEl = (
@@ -74,15 +74,20 @@ export default function ({
         isClearable={false}
         value={
           ruleValue && allNotebooks.includes(ruleValue as string)
-            ? { value: ruleValue, label: ruleType === "rootNotebookPath" && ruleValue === "/" ? "All notebooks" : ruleValue }
+            ? {
+                value: ruleValue,
+                label:
+                  ruleType === "rootNotebookPath" && ruleValue === "/"
+                    ? "All notebooks"
+                    : ruleValue,
+              }
             : undefined
         }
         options={options}
         onChange={(sel) => sel && onChange(sel.value)}
       />
     );
-  }
-  else
+  } else
     inputEl = (
       <Input
         type="text"

@@ -1,15 +1,20 @@
 import * as yaml from "js-yaml";
-import { getNotebookPath, getNoteById, searchNotes, NoteData } from "./noteData";
+import {
+  getNotebookPath,
+  getNoteById,
+  searchNotes,
+  NoteData,
+} from "./noteData";
 
 import rules, { Rule } from "./rules";
 import { ConfigNote, UpdateQuery } from "./noteData";
 import type { Action } from "./actions";
-import type { BoardState } from "./gui/hooks"
+import type { BoardState } from "./gui/hooks";
 
 export interface Message {
   id: string;
   title: string;
-  severity: "info" | "warning" | "error"
+  severity: "info" | "warning" | "error";
   details?: string;
   actions: string[];
 }
@@ -56,32 +61,32 @@ interface InvalidBoard extends BoardBase {
 
 export type Board = ValidBoard | InvalidBoard;
 
-export const getYamlConfig = (boardNoteBody: string): string | null =>  {
+export const getYamlConfig = (boardNoteBody: string): string | null => {
   const configRegex = /^```kanban(.*)```/ms;
   const match = boardNoteBody.match(configRegex);
   if (!match || match.length < 2) return null;
   return match[1];
-}
+};
 
 export function getMdTable(boardState: BoardState): string {
-  if (!boardState.columns) return ''
+  if (!boardState.columns) return "";
 
-  const separator = '---'
-  const colNames = boardState.columns.map((col) => col.name)
+  const separator = "---";
+  const colNames = boardState.columns.map((col) => col.name);
 
-  const header = colNames.join(" | ") + "\n"
-  const headerSep = colNames.map(() => separator).join(' | ') + "\n"
+  const header = colNames.join(" | ") + "\n";
+  const headerSep = colNames.map(() => separator).join(" | ") + "\n";
 
-  const rows: string[][] = []
-  const numRows = Math.max(...boardState.columns.map((c) => c.notes.length))
+  const rows: string[][] = [];
+  const numRows = Math.max(...boardState.columns.map((c) => c.notes.length));
   for (let i = 0; i < numRows; i++) {
-    rows[i] = boardState.columns.map((col) => col.notes[i]?.title || "")
+    rows[i] = boardState.columns.map((col) => col.notes[i]?.title || "");
   }
 
-  const body = rows.map((r) => "| "+ r.join(" | ") + " |").join("\n") + "\n"
-  const timestamp = `_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`
+  const body = rows.map((r) => "| " + r.join(" | ") + " |").join("\n") + "\n";
+  const timestamp = `_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`;
 
-  return header + headerSep + body + timestamp
+  return header + headerSep + body + timestamp;
 }
 
 export async function getBoardState(board?: Board): Promise<BoardState> {
@@ -90,8 +95,8 @@ export async function getBoardState(board?: Board): Promise<BoardState> {
   const state: BoardState = {
     name: board.boardName,
     messages: [],
-    hiddenTags: []
-  }
+    hiddenTags: [],
+  };
 
   if (board.isValid) {
     const allNotes = await searchNotes(board.rootNotebookName);
@@ -102,38 +107,43 @@ export async function getBoardState(board?: Board): Promise<BoardState> {
       if (colName) sortedNotes[colName].push(note);
     }
 
-    const sortedColumns: BoardState["columns"] = Object.entries(sortedNotes).map(
-      ([name, notes]) => ({ name, notes })
-    );
+    const sortedColumns: BoardState["columns"] = Object.entries(
+      sortedNotes
+    ).map(([name, notes]) => ({ name, notes }));
 
     Object.values(sortedColumns).forEach((col) =>
       col.notes.sort((a, b) => {
-        if (a.order < b.order) return +1
-        if (a.order > b.order) return -1
-        return a.createdTime < b.createdTime ? +1 : -1
+        if (a.order < b.order) return +1;
+        if (a.order > b.order) return -1;
+        return a.createdTime < b.createdTime ? +1 : -1;
       })
     );
-    state.columns = sortedColumns
-    state.hiddenTags = board.hiddenTags
+    state.columns = sortedColumns;
+    state.hiddenTags = board.hiddenTags;
   } else {
-    state.messages = board.errorMessages
+    state.messages = board.errorMessages;
   }
 
   return state;
 }
 
-export async function isNoteIdOnBoard(id: string, board: Board | undefined): Promise<boolean> {
+export async function isNoteIdOnBoard(
+  id: string,
+  board: Board | undefined
+): Promise<boolean> {
   if (!board || !board.isValid) return false;
   const note = await getNoteById(id);
   if (!note) return true;
   return board.sortNoteIntoColumn(note) !== null;
 }
 
-export const parseConfigNote = (yamlConfig: string): { config?: Config; error?: Message } => {
+export const parseConfigNote = (
+  yamlConfig: string
+): { config?: Config; error?: Message } => {
   try {
-    const fixedYaml = yamlConfig.replace(/\t/g, "  ")
+    const fixedYaml = yamlConfig.replace(/\t/g, "  ");
     const configObj = yaml.load(fixedYaml) as Config;
-    const configError = validateConfig(configObj)
+    const configError = validateConfig(configObj);
     if (configError) return { error: configError };
     return { config: configObj };
   } catch (e) {
@@ -190,7 +200,9 @@ const validateConfig = (config: Config | {} | null): Message | null => {
       if (!(key in rules) && key !== "backlog" && key !== "name")
         return configErr(`Invalid rule type "${key}" in column "${col.name}"`);
       if (isBacklog && key !== "backlog" && key !== "name")
-        return configErr(`If a column is marked as backlog, it cannot have any other rules specified. Remove ${key} rule from ${col.name}!`)
+        return configErr(
+          `If a column is marked as backlog, it cannot have any other rules specified. Remove ${key} rule from ${col.name}!`
+        );
     }
   }
 
@@ -210,34 +222,39 @@ export default async function ({
     boardName,
     configNoteId,
     configYaml,
-    isValid: false
-  }
+    isValid: false,
+  };
 
   const { config: configObj, error } = parseConfigNote(configYaml);
   if (!configObj) {
-    return { ...boardBase, isValid: false, errorMessages: [error as Message] }
+    return { ...boardBase, isValid: false, errorMessages: [error as Message] };
   }
-  
-  const { rootNotebookPath = await getNotebookPath(boardNotebookId) } = configObj.filters || {};
+
+  const { rootNotebookPath = await getNotebookPath(boardNotebookId) } =
+    configObj.filters || {};
   const rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
   const baseFilters: Rule["filterNote"][] = [
-    (await rules.excludeNoteId(configNoteId, rootNotebookPath, configObj)).filterNote,
+    (await rules.excludeNoteId(configNoteId, rootNotebookPath, configObj))
+      .filterNote,
   ];
 
   if (rootNotebookPath !== "/") {
-    baseFilters.push((await rules.notebookPath(rootNotebookPath, "", configObj)).filterNote)
+    baseFilters.push(
+      (await rules.notebookPath(rootNotebookPath, "", configObj)).filterNote
+    );
   }
 
-  let hiddenTags: string[] = []
+  let hiddenTags: string[] = [];
   for (const key in configObj.filters) {
     let val = configObj.filters[key];
     if (typeof val === "boolean") val = `${val}`;
     if (val && key in rules) {
       const rule = await rules[key](val, rootNotebookPath, configObj);
       baseFilters.push(rule.filterNote);
-      if (key === "tag") hiddenTags.push(val as string)
-      else if (key === "tags") hiddenTags = [...hiddenTags, ...(val as string[])]
+      if (key === "tag") hiddenTags.push(val as string);
+      else if (key === "tags")
+        hiddenTags = [...hiddenTags, ...(val as string[])];
     }
   }
 
@@ -260,8 +277,9 @@ export default async function ({
         if (val && key in rules) {
           const rule = await rules[key](val, rootNotebookPath, configObj);
           newCol.rules.push(rule);
-          if (key === "tag") hiddenTags.push(val as string)
-          else if (key === "tags") hiddenTags = [...hiddenTags, ...(val as string[])]
+          if (key === "tag") hiddenTags.push(val as string);
+          else if (key === "tags")
+            hiddenTags = [...hiddenTags, ...(val as string[])];
         }
       }
       regularColumns.push(newCol);
@@ -292,7 +310,8 @@ export default async function ({
     actionToQuery(action: Action, boardState: BoardState) {
       switch (action.type) {
         case "moveNote":
-          const { noteId, newColumnName, oldColumnName, newIndex } = action.payload;
+          const { noteId, newColumnName, oldColumnName, newIndex } =
+            action.payload;
           const newCol = allColumns.find(
             ({ name }) => name === newColumnName
           ) as Column;
@@ -302,21 +321,31 @@ export default async function ({
 
           const unsetQueries = oldCol.rules.flatMap((r) => r.unset(noteId));
           const setQueries = newCol.rules.flatMap((r) => r.set(noteId));
-          const queries: UpdateQuery[] = [...unsetQueries, ...setQueries]
+          const queries: UpdateQuery[] = [...unsetQueries, ...setQueries];
 
-          const setOrder = (note: string, order: number) => queries.push({ type: "put", path: ["notes", note], body: { order } })
-          const notesInCol = boardState.columns?.find((col) => col.name === newColumnName)?.notes as NoteData[]
-          const notes = notesInCol.filter((note) => note.id !== noteId)
+          const setOrder = (note: string, order: number) =>
+            queries.push({
+              type: "put",
+              path: ["notes", note],
+              body: { order },
+            });
+          const notesInCol = boardState.columns?.find(
+            (col) => col.name === newColumnName
+          )?.notes as NoteData[];
+          const notes = notesInCol.filter((note) => note.id !== noteId);
           if (notes.length > 0) {
             if (newIndex === 0) {
-              setOrder(noteId, notes[0].order + 1)
+              setOrder(noteId, notes[0].order + 1);
             } else if (newIndex >= notes.length) {
-              setOrder(noteId, notes[notes.length - 1].order - 1)
+              setOrder(noteId, notes[notes.length - 1].order - 1);
             } else {
-              const newOrder = notes[newIndex - 1].order - 1
-              setOrder(noteId, newOrder)
-              const notesAfter = notesInCol.slice(newIndex)
-              notesAfter.forEach((note, idx) => note.id !== noteId && setOrder(note.id, newOrder - 1 - idx))
+              const newOrder = notes[newIndex - 1].order - 1;
+              setOrder(noteId, newOrder);
+              const notesAfter = notesInCol.slice(newIndex);
+              notesAfter.forEach(
+                (note, idx) =>
+                  note.id !== noteId && setOrder(note.id, newOrder - 1 - idx)
+              );
             }
           }
 

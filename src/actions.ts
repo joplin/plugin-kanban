@@ -20,7 +20,7 @@ export interface SettingsAction {
   type: "settings";
   payload: {
     target: string;
-  }
+  };
 }
 
 export interface MessageAction {
@@ -28,26 +28,33 @@ export interface MessageAction {
   payload: {
     messageId: string;
     actionName: string;
-  }
+  };
 }
 
 export interface OpenNoteAction {
- type: "openNote";
- payload: {
+  type: "openNote";
+  payload: {
     noteId: string;
-  }
+  };
 }
 
 export interface AddColumnAction {
- type: "addColumn";
+  type: "addColumn";
 }
 
 export interface DeleteColAction {
   type: "deleteCol";
   payload: {
     colName: string;
-  }
+  };
 }
 
-
-export type Action = MoveNoteAction | LoadAction | PollAction | SettingsAction | MessageAction | OpenNoteAction | AddColumnAction | DeleteColAction;
+export type Action =
+  | MoveNoteAction
+  | LoadAction
+  | PollAction
+  | SettingsAction
+  | MessageAction
+  | OpenNoteAction
+  | AddColumnAction
+  | DeleteColAction;

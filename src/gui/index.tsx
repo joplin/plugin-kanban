@@ -52,9 +52,9 @@ function App() {
     ...col,
     notes: col.notes.map((note) => ({
       ...note,
-      tags: note.tags.filter((tag) => !board.hiddenTags.includes(tag))
-    }))
-  }))
+      tags: note.tags.filter((tag) => !board.hiddenTags.includes(tag)),
+    })),
+  }));
 
   const cont = board ? (
     <Container>

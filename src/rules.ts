@@ -9,7 +9,7 @@ import {
   createNotebook,
 } from "./noteData";
 
-import { log } from "./index"
+import { log } from "./index";
 
 export interface Rule {
   filterNote: (note: NoteData) => boolean;
@@ -29,9 +29,9 @@ type Rules = { [ruleName: string]: RuleFactory };
 const rules: Rules = {
   async tag(arg: string | string[]) {
     const tagName = Array.isArray(arg) ? arg[0] : arg;
-    log(`Creating tag rule with name ${tagName}`)
+    log(`Creating tag rule with name ${tagName}`);
     const tagID = (await getTagId(tagName)) || (await createTag(tagName));
-    log(`Tag ID: ${tagID}`)
+    log(`Tag ID: ${tagID}`);
     return {
       filterNote: (note: NoteData) => note.tags.includes(tagName),
       set: (noteId: string) => [
@@ -156,13 +156,13 @@ const editorTypes = {
     notebookPath: "notebook",
     completed: "checkbox",
     backlog: "checkbox",
-  }
-}
+  },
+};
 
 export const getRuleEditorTypes = (targetPath: string) => {
-  if (targetPath === "filters") return editorTypes.filters
-  if (targetPath.startsWith("column")) return editorTypes.columns
-  throw new Error(`Unkown target path ${targetPath}`)
-}
+  if (targetPath === "filters") return editorTypes.filters;
+  if (targetPath.startsWith("column")) return editorTypes.columns;
+  throw new Error(`Unkown target path ${targetPath}`);
+};
 
 export default rules;

@@ -1,6 +1,6 @@
 import joplin from "api";
 
-import { log } from "./index"
+import { log } from "./index";
 
 export interface UpdateQuery {
   type: "post" | "delete" | "put";
@@ -22,13 +22,22 @@ export interface NoteData {
   notebookId: string;
   isTodo: boolean;
   isCompleted: boolean;
-  due: number; 
+  due: number;
   order: number;
   createdTime: number;
 }
 
 async function search(query: string): Promise<NoteData[]> {
-  const fields = ["id", "title", "parent_id", "is_todo", "todo_completed", "todo_due", "order", "created_time"];
+  const fields = [
+    "id",
+    "title",
+    "parent_id",
+    "is_todo",
+    "todo_completed",
+    "todo_due",
+    "order",
+    "created_time",
+  ];
 
   type RawNote = {
     id: string;
@@ -54,7 +63,16 @@ async function search(query: string): Promise<NoteData[]> {
       { query, page, fields }
     );
 
-    for (const { id, title, parent_id, is_todo, todo_completed, todo_due, order, created_time } of notes) {
+    for (const {
+      id,
+      title,
+      parent_id,
+      is_todo,
+      todo_completed,
+      todo_due,
+      order,
+      created_time,
+    } of notes) {
       const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
         ({ title }: { title: string }) => title
       );
@@ -67,7 +85,7 @@ async function search(query: string): Promise<NoteData[]> {
         notebookId: parent_id,
         due: todo_due,
         order: order === 0 ? created_time : order,
-        createdTime: created_time
+        createdTime: created_time,
       });
     }
 
@@ -92,9 +110,12 @@ export async function getNoteById(id: string): Promise<NoteData> {
 
 export async function executeUpdateQuery(updateQuery: UpdateQuery) {
   const { type, path, body = null } = updateQuery;
-  if (type === "put" && path[0] === "notes") { // need to save updated_time
-    const{ updated_time, user_updated_time } = await joplin.data.get(path, { fields: ["updated_time", "user_updated_time"]});
-    const patchedBody = { ...body, updated_time, user_updated_time }
+  if (type === "put" && path[0] === "notes") {
+    // need to save updated_time
+    const { updated_time, user_updated_time } = await joplin.data.get(path, {
+      fields: ["updated_time", "user_updated_time"],
+    });
+    const patchedBody = { ...body, updated_time, user_updated_time };
     await joplin.data.put(path, null, patchedBody);
   } else {
     await joplin.data[type](path, null, body);
@@ -107,42 +128,46 @@ export function getConfigNote(noteId: string): Promise<ConfigNote> {
 }
 
 async function setConfigNoteBody(noteId: string, newBody: string) {
-  const { id: selectedNoteId } = await joplin.workspace.selectedNote()
+  const { id: selectedNoteId } = await joplin.workspace.selectedNote();
   if (selectedNoteId === noteId) {
-    await joplin.commands.execute("editor.setText", newBody)
+    await joplin.commands.execute("editor.setText", newBody);
   }
 
   await joplin.data.put(["notes", noteId], null, { body: newBody });
 }
 
 export async function setConfig(noteId: string, newConfig: string) {
-  const { body: oldBody } = await getConfigNote(noteId)
-  const pat = /([\s\S]*?)```kanban([\s\S]*?)```([\s\S]*)/
-  const newBody = oldBody.replace(pat, `$1${newConfig}$3`)
-  if (oldBody !== newBody) await setConfigNoteBody(noteId, newBody)
+  const { body: oldBody } = await getConfigNote(noteId);
+  const pat = /([\s\S]*?)```kanban([\s\S]*?)```([\s\S]*)/;
+  const newBody = oldBody.replace(pat, `$1${newConfig}$3`);
+  if (oldBody !== newBody) await setConfigNoteBody(noteId, newBody);
 }
 
 export async function setAfterConfig(noteId: string, afterConfig: string) {
-  const { body: oldBody } = await getConfigNote(noteId)
-  const pat = /([\s\S]*?```kanban[\s\S]*?```)([\s\S]*)/
-  const newBody = oldBody.replace(pat, `$1\n\n${afterConfig}`)
-  if (oldBody !== newBody) await setConfigNoteBody(noteId, newBody)
+  const { body: oldBody } = await getConfigNote(noteId);
+  const pat = /([\s\S]*?```kanban[\s\S]*?```)([\s\S]*)/;
+  const newBody = oldBody.replace(pat, `$1\n\n${afterConfig}`);
+  if (oldBody !== newBody) await setConfigNoteBody(noteId, newBody);
 }
 
 export async function getTagId(tagName: string): Promise<string | undefined> {
-  const { items: [{ id = undefined } = {}] } = await joplin.data.get(["search"], { query: tagName, type: "tag" });
-  log(`Found tag id for ${tagName}: ${id}`)
-  return id
+  const {
+    items: [{ id = undefined } = {}],
+  } = await joplin.data.get(["search"], { query: tagName, type: "tag" });
+  log(`Found tag id for ${tagName}: ${id}`);
+  return id;
 }
 
 export async function getAllTags(): Promise<string[]> {
   let tags: string[] = [];
   let page = 1;
   while (true) {
-    const { items: newTags, has_more: hasMore }: { items: { title: string }[], has_more: boolean } = await joplin.data.get([
-      "tags",
-    ], {page});
-    tags = [...tags, ...newTags.map((t) => t.title)]
+    const {
+      items: newTags,
+      has_more: hasMore,
+    }: { items: { title: string }[]; has_more: boolean } =
+      await joplin.data.get(["tags"], { page });
+    tags = [...tags, ...newTags.map((t) => t.title)];
 
     if (!hasMore) break;
     else page++;
@@ -152,9 +177,11 @@ export async function getAllTags(): Promise<string[]> {
 }
 
 export async function createTag(tagName: string): Promise<string> {
-  log(`Creating new tag ${tagName}`)
+  log(`Creating new tag ${tagName}`);
   const result = await joplin.data.post(["tags"], null, { title: tagName });
-  log(`Created new tag ${tagName}, result: ${JSON.stringify(result, null, 4)}\n`)
+  log(
+    `Created new tag ${tagName}, result: ${JSON.stringify(result, null, 4)}\n`
+  );
   return result.id;
 }
 
@@ -228,10 +255,14 @@ export async function getAllNotebooks(): Promise<Folder[]> {
   let folders: Folder[] = [];
   let page = 1;
   while (true) {
-    const { items: newFolders, has_more: hasMore }: { items: Folder[], has_more: boolean } = await joplin.data.get([
-      "folders",
-    ], {page});
-    folders = [...folders, ...newFolders]
+    const {
+      items: newFolders,
+      has_more: hasMore,
+    }: { items: Folder[]; has_more: boolean } = await joplin.data.get(
+      ["folders"],
+      { page }
+    );
+    folders = [...folders, ...newFolders];
 
     if (!hasMore) break;
     else page++;

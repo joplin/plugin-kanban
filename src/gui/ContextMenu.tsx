@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
 
-const CLOSE_EVENTS = ["click", "contextmenu", "wheel", "blur"]
+const CLOSE_EVENTS = ["click", "contextmenu", "wheel", "blur"];
 export default function ({
   options,
   onSelect,
@@ -15,13 +15,14 @@ export default function ({
     posX: number | null;
     posY: number | null;
   }>({ posX: null, posY: null });
-  const isOpen = posX !== null && posY !== null
+  const isOpen = posX !== null && posY !== null;
 
   useEffect(() => {
     if (isOpen) {
-      const close = () => setPos({ posX: null, posY: null })
-      CLOSE_EVENTS.forEach(ev => window.addEventListener(ev, close))
-      return () => CLOSE_EVENTS.forEach(ev => window.removeEventListener(ev, close))
+      const close = () => setPos({ posX: null, posY: null });
+      CLOSE_EVENTS.forEach((ev) => window.addEventListener(ev, close));
+      return () =>
+        CLOSE_EVENTS.forEach((ev) => window.removeEventListener(ev, close));
     }
   }, [isOpen]);
 
@@ -53,7 +54,7 @@ const FloatingMenu = styled.div<{ posX: number | null; posY: number | null }>(
     width: "150px",
     backgroundColor: "var(--joplin-background-color)",
     border: "1px solid var(--joplin-divider-color)",
-    padding: "2px 0"
+    padding: "2px 0",
   })
 );
 

@@ -9,12 +9,16 @@ import { useDroppableArea } from "./DragDrop";
 
 export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
   const dispatch = useContext(DispatchContext);
-  const { dropRef, handlerId, isOver } = useDroppableArea({ colName: name, notesLength: notes.length })
+  const { dropRef, handlerId, isOver } = useDroppableArea({
+    colName: name,
+    notesLength: notes.length,
+  });
 
   const handleMenu = (selected: string) => {
     if (selected === "Edit")
       dispatch({ type: "settings", payload: { target: `columns.${name}` } });
-    else if (selected === "Delete") dispatch({ type: "deleteCol", payload: { colName: name } })
+    else if (selected === "Delete")
+      dispatch({ type: "deleteCol", payload: { colName: name } });
   };
   return (
     <Column>

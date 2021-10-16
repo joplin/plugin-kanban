@@ -44,7 +44,13 @@ export function DragDropContext({ children }: React.PropsWithChildren<{}>) {
   );
 }
 
-export function useDroppableArea({ colName, notesLength }: { colName: string; notesLength: number }) {
+export function useDroppableArea({
+  colName,
+  notesLength,
+}: {
+  colName: string;
+  notesLength: number;
+}) {
   const dispatch = useContext(DispatchContext);
   const [, setDragWaiting] = useContext(IsDragWaitingContext);
 
@@ -55,7 +61,7 @@ export function useDroppableArea({ colName, notesLength }: { colName: string; no
       isOver: monitor.isOver(),
     }),
     drop(item: DragItem, monitor: DropTargetMonitor) {
-      if (monitor.didDrop()) return
+      if (monitor.didDrop()) return;
       setDragWaiting(true);
       dispatch({
         type: "moveNote",
@@ -116,8 +122,8 @@ export function useDroppableCard({
     },
 
     drop(item: DragItem) {
-      const pos = (placeholder as PlaceholderData).pos
-      const newIndex = pos === PhPos.ABOVE ? index : index + 1
+      const pos = (placeholder as PlaceholderData).pos;
+      const newIndex = pos === PhPos.ABOVE ? index : index + 1;
       setDragWaiting(true);
       dispatch({
         type: "moveNote",
@@ -125,7 +131,7 @@ export function useDroppableCard({
           noteId: item.noteData.id,
           oldColumnName: item.oldColName,
           newColumnName: colName,
-          newIndex
+          newIndex,
         },
       }).then(() => setDragWaiting(false));
     },

@@ -18,16 +18,13 @@ interface State {
   board?: BoardState;
 }
 
-export type DispatchFn = (action: Action) => Promise<void>
+export type DispatchFn = (action: Action) => Promise<void>;
 
-export function useRemoteBoard(): [
-  BoardState | undefined,
-  DispatchFn
-] {
+export function useRemoteBoard(): [BoardState | undefined, DispatchFn] {
   const [state, setState] = useState<State>({});
 
   const dispatch: DispatchFn = useCallback(async (action: Action) => {
-    const newBoard: BoardState = await webviewApi.postMessage(action)
+    const newBoard: BoardState = await webviewApi.postMessage(action);
     setState({ board: newBoard });
   }, []);
 
@@ -35,7 +32,7 @@ export function useRemoteBoard(): [
   const poll = () => {
     webviewApi.postMessage({ type: "poll" }).then((newBoard: BoardState) => {
       if (!newBoard) {
-        shouldPoll.current = false
+        shouldPoll.current = false;
       } else {
         setState({ board: newBoard });
         if (shouldPoll.current === true) poll();
@@ -53,4 +50,3 @@ export function useRemoteBoard(): [
 
   return [state.board, dispatch];
 }
-
