@@ -49,6 +49,14 @@ export interface DeleteColAction {
   };
 }
 
+export interface NewNoteAction {
+  type: "newNote";
+  payload: {
+    colName: string;
+    noteId?: string;
+  };
+}
+
 export type Action =
   | MoveNoteAction
   | LoadAction
@@ -57,4 +65,5 @@ export type Action =
   | MessageAction
   | OpenNoteAction
   | AddColumnAction
-  | DeleteColAction;
+  | DeleteColAction
+  | NewNoteAction;

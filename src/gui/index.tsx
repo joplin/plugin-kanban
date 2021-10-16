@@ -154,8 +154,8 @@ const IconCont = styled("div")({
     backgroundColor: "var(--joplin-background-color-hover3)",
   },
   "& > svg": {
-    width: "1em",
-    height: "1em",
+    width: "1.3em",
+    height: "1.3em",
     color: "var(--joplin-color3)",
   },
 });

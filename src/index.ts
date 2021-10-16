@@ -16,16 +16,18 @@ import {
   executeUpdateQuery,
   getAllTags,
   getAllNotebooks,
+  getNoteById,
   setAfterConfig,
 } from "./noteData";
-import { Action } from "./actions";
+import { Action, MoveNoteAction } from "./actions";
 import { getRuleEditorTypes } from "./rules";
 import type { BoardState } from "./gui/hooks";
 import type { ConfigUIData } from "./configui";
 
 let openBoard: Board | undefined;
 let view: string | undefined;
-let pollCb: () => void | undefined;
+let pollCb: (() => void) | undefined;
+let newNoteChangedCb: ((noteId: string) => void) | undefined;
 
 const fs = window.require("fs");
 const path = window.require("path");
@@ -125,6 +127,7 @@ async function showBoard() {
       log(`Got message from webview:\n${JSON.stringify(msg, null, 4)}\n`);
       if (!openBoard) return;
 
+      const oldState: BoardState = await getBoardState(openBoard);
       if (msg.type === "poll") {
         await new Promise((res) => (pollCb = res));
       } else if (msg.type === "settings") {
@@ -163,8 +166,17 @@ async function showBoard() {
         }
       } else if (msg.type === "openNote") {
         await joplin.commands.execute("openNote", msg.payload.noteId);
+      } else if (msg.type === "newNote") {
+        await joplin.commands.execute("newNote");
+        newNoteChangedCb = async (noteId: string) => {
+          if (!openBoard || !("actionToQuery" in openBoard)) return
+          msg.payload.noteId = noteId
+          for (const query of openBoard.actionToQuery(msg, oldState)) {
+            log(`Executing update: \n${JSON.stringify(query, null, 4)}\n`);
+            await executeUpdateQuery(query);
+          }
+        };
       } else if (msg.type !== "load" && "actionToQuery" in openBoard) {
-        const oldState: BoardState = await getBoardState(openBoard);
         for (const query of openBoard.actionToQuery(msg, oldState)) {
           log(`Executing update: \n${JSON.stringify(query, null, 4)}\n`);
           await executeUpdateQuery(query);
@@ -239,8 +251,9 @@ joplin.plugins.register({
     hideBoard();
 
     joplin.workspace.onNoteSelectionChange(
-      ({ value }: { value: [string?] }) => {
-        const newNoteId = value?.[0];
+      async ({ value }: { value: [string?] }) => {
+        const newNoteId = value?.[0] as string;
+        if (newNoteChangedCb && (await getNoteById(newNoteId))) newNoteChangedCb = undefined;
         if (newNoteId) handleNewlyOpenedNote(newNoteId);
       }
     );
@@ -253,6 +266,13 @@ joplin.plugins.register({
         if (pollCb) pollCb();
       } else if (await isNoteIdOnBoard(id, openBoard)) {
         log("Changed note was on the board, updating");
+        if (newNoteChangedCb) {
+          const note = await getNoteById(id);
+          if (note && note.title !== "") {
+            newNoteChangedCb(id);
+            newNoteChangedCb = undefined;
+          }
+        }
         if (pollCb) pollCb();
       }
     });

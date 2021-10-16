@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 import styled from "styled-components";
+import { IoMdAdd } from "react-icons/io";
 
 import type { NoteData } from "../noteData";
 import { DispatchContext } from "./index";
@@ -20,10 +21,24 @@ export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
     else if (selected === "Delete")
       dispatch({ type: "deleteCol", payload: { colName: name } });
   };
+
+  const handleNewNote = () =>
+    dispatch({
+      type: "newNote",
+      payload: {
+        colName: name,
+      },
+    });
+
   return (
     <Column>
       <ContextMenu options={["Edit", "Delete"]} onSelect={handleMenu}>
-        <ColumnHeader>{name}</ColumnHeader>
+        <ColumnHeader>
+          {name}{" "}
+          <AddIconCont onClick={handleNewNote}>
+            <IoMdAdd size="25px" />
+          </AddIconCont>{" "}
+        </ColumnHeader>
       </ContextMenu>
 
       <DroppableArea
@@ -52,10 +67,30 @@ const Column = styled("div")({
 });
 
 const ColumnHeader = styled("div")({
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
   fontSize: "1.1rem",
   fontWeight: "bold",
   marginBottom: "20px",
   userSelect: "none",
+});
+
+const AddIconCont = styled("span")({
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  marginLeft: "auto",
+  borderRadius: "5px",
+
+  "&:hover": {
+    backgroundColor: "var(--joplin-background-color-hover3)",
+  },
+  "& > svg": {
+    width: "1.5em",
+    height: "1.5em",
+    color: "var(--joplin-color3)",
+  },
 });
 
 const DroppableArea = styled("div")<{ draggingOver: boolean }>(

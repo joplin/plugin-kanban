@@ -309,6 +309,12 @@ export default async function ({
 
     actionToQuery(action: Action, boardState: BoardState) {
       switch (action.type) {
+        case "newNote":
+          const col = allColumns.find(
+            ({ name }) => name === action.payload.colName
+          ) as Column;
+          return col.rules.flatMap((r) => r.set(action.payload.noteId || ""));
+
         case "moveNote":
           const { noteId, newColumnName, oldColumnName, newIndex } =
             action.payload;
