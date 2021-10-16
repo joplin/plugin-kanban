@@ -7,4 +7,5 @@ body > div,
   margin: 0;
   width: 100%;
   height: 100%;
+  font-size: var(--joplin-note-viewer-font-size);
 }

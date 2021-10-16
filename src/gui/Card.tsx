@@ -45,14 +45,13 @@ export default React.forwardRef<HTMLDivElement, { note: NoteData }>(
 
 const CardDiv = styled.div({
   boxSizing: "border-box",
-  padding: "15px",
-  paddingBottom: "10px",
-  marginBottom: "20px",
-  fontSize: "1.2rem",
+  padding: "0.8em",
+  paddingBottom: "0.5em",
+  marginBottom: "0.8em",
   borderRadius: "5px",
   border: "2px #DDDDDD solid",
   backgroundColor: "var(--joplin-background-color)",
-  cursor: "pointer !important",
+  cursor: "grab !important",
   overflow: "hidden",
   overflowWrap: "anywhere",
 

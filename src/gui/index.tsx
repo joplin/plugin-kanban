@@ -122,11 +122,10 @@ const Container = styled("div")({
 });
 
 const Header = styled("div")({
-  height: "50px",
-  fontSize: "28px",
-  padding: "10px",
-  paddingLeft: "20px",
-  marginBottom: "10px",
+  fontSize: "1.2rem",
+  fontWeight: "bold",
+  padding: "0.3em",
+  marginBottom: "0.5em",
   display: "flex",
   flexDirection: "row",
   alignItems: "center",
@@ -141,20 +140,28 @@ const ColumnsCont = styled("div")({
 });
 
 const IconCont = styled("div")({
-  width: "33px",
-  height: "33px",
-  border: "1px solid black",
-  borderRadius: "5px",
-  marginLeft: "20px",
+  margin: "auto 0.1em",
+  padding: "0.1em",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  cursor: "pointer",
+  borderRadius: "5px",
+
+  "&:first-child": {
+    marginLeft: "auto",
+  },
+  "&:hover": {
+    backgroundColor: "var(--joplin-background-color-hover3)",
+  },
+  "& > svg": {
+    width: "1em",
+    height: "1em",
+    color: "var(--joplin-color3)",
+  },
 });
 
 const MessagesCont = styled("div")({
   padding: "0 15px",
-  marginBottom: "30px",
 });
 
 const messageColors: { [k in Message["severity"]]: [string, string, string] } =
@@ -169,14 +176,15 @@ const MessageBoxContainer = styled("div")<{ severity: Message["severity"] }>(
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    padding: "15px",
+    padding: "0.8em",
+    // fontSize: "1.1rem",
     borderRadius: "7px",
     border: `1px solid ${messageColors[severity][1]}`,
     color: messageColors[severity][2],
     backgroundColor: messageColors[severity][0],
-    fontSize: "1.1em",
-    "& + &": {
-      marginBottom: "10px",
+    marginBottom: "0.7em",
+    "&:last-child": {
+      marginBottom: "1em",
     },
   })
 );

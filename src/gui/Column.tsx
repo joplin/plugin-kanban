@@ -52,7 +52,7 @@ const Column = styled("div")({
 });
 
 const ColumnHeader = styled("div")({
-  fontSize: "18px",
+  fontSize: "1.1rem",
   fontWeight: "bold",
   marginBottom: "20px",
   userSelect: "none",
