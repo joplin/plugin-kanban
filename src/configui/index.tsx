@@ -13,7 +13,7 @@ export interface ConfigUIData {
   targetPath: string;
   ruleEditorTypes: { [rule: string]: string };
   allTags: string[];
-  allNotebooks: string[]
+  allNotebooks: string[];
 }
 
 function AddRuleBtn({
@@ -28,13 +28,25 @@ function AddRuleBtn({
     ...rules.map((r) => ({ value: r, label: capitalize(r) })),
   ];
 
+  const handleChange: Select["onChange"] = (ev) => {
+    if (ev && ev.value !== "") {
+      if (ev.value === "backlog") {
+        const confirmed = window.confirm(
+          "Adding a backlog column will delete all other rules! Are you sure you want to add it?"
+        );
+        if (!confirmed) return;
+      }
+      onAdd(ev.value);
+    }
+  };
+
   return (
     <Select
       isClearable={false}
       isSearchable={false}
       value={options[0]}
       options={options}
-      onChange={(ev) => ev && ev.value !== "" && onAdd(ev.value)}
+      onChange={handleChange}
     />
   );
 }
@@ -45,10 +57,12 @@ function App() {
     targetPath,
     ruleEditorTypes,
     allTags,
-    allNotebooks
+    allNotebooks,
   } = useMemo(
     () =>
-      JSON.parse(document.getElementById("data")?.innerHTML as string) as ConfigUIData,
+      JSON.parse(
+        document.getElementById("data")?.innerHTML as string
+      ) as ConfigUIData,
     []
   );
   const { editedObj, onPropChange, onDeleteProp, yamlConfig } = useConfig(
@@ -61,9 +75,10 @@ function App() {
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 0 : 1));
   if ("name" in editedObj) props = [["name", editedObj.name], ...props];
 
-  const addableRules = Object.keys(ruleEditorTypes).filter(
-    (r) => !(r in editedObj)
-  );
+  const addableRules =
+    "backlog" in editedObj && editedObj.backlog
+      ? []
+      : Object.keys(ruleEditorTypes).filter((r) => !(r in editedObj));
 
   return (
     <Cont>

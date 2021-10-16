@@ -184,9 +184,13 @@ const validateConfig = (config: Config | {} | null): Message | null => {
       return configErr(
         `Column #${config.columns.indexOf(col) + 1} has no name!`
       );
+
+    const isBacklog = "backlog" in col && col.backlog;
     for (const key in col) {
       if (!(key in rules) && key !== "backlog" && key !== "name")
         return configErr(`Invalid rule type "${key}" in column "${col.name}"`);
+      if (isBacklog && key !== "backlog" && key !== "name")
+        return configErr(`If a column is marked as backlog, it cannot have any other rules specified. Remove ${key} rule from ${col.name}!`)
     }
   }
 

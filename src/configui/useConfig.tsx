@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import * as yaml from "js-yaml";
 
 import type { Config, RuleValue } from "../board";
@@ -8,7 +8,9 @@ export default function (editedPath: string, inputConfig: Config) {
     string,
     string
   ];
-  const [editedColIdx, setEditedColIdx] = useState(colIdxStr === null ? null : parseInt(colIdxStr));
+  const [editedColIdx, setEditedColIdx] = useState(
+    colIdxStr === null ? null : parseInt(colIdxStr)
+  );
 
   const [editedObj, setEditedObj] = useState(() => {
     if (editedColIdx !== null) return inputConfig.columns[editedColIdx];
@@ -25,17 +27,34 @@ export default function (editedPath: string, inputConfig: Config) {
       return Object.fromEntries(filteredEntries) as typeof obj;
     });
 
-  if ("tag" in editedObj) {
-    setEditedObj((obj) => {
-      const filteredEntries = Object.entries(obj).filter(([k]) => k !== "tag");
-      const newObj = Object.fromEntries(filteredEntries) as typeof obj;
-      (newObj as any).tags = [
-        editedObj.tag as string,
-        ...((editedObj?.tags as string[]) || []),
-      ];
-      return newObj;
-    });
-  }
+  useEffect(() => {
+    if ("tag" in editedObj) {
+      setEditedObj((obj) => {
+        const filteredEntries = Object.entries(obj).filter(
+          ([k]) => k !== "tag"
+        );
+        const newObj = Object.fromEntries(filteredEntries) as typeof obj;
+        (newObj as any).tags = [
+          editedObj.tag as string,
+          ...((editedObj?.tags as string[]) || []),
+        ];
+        return newObj;
+      });
+    }
+  }, ["tag" in editedObj]);
+
+  const isBacklog = "backlog" in editedObj && editedObj.backlog;
+  useEffect(() => {
+    if (isBacklog && Object.keys(editedObj).length > 2) {
+      setEditedObj((obj) => {
+        const filteredEntries = Object.entries(obj).filter(
+          ([k]) => k === "backlog" || k === "name"
+        );
+        const newObj = Object.fromEntries(filteredEntries) as typeof obj;
+        return newObj;
+      });
+    }
+  }, [isBacklog, Object.keys(editedObj).length]);
 
   const outObjEntries = Object.entries(editedObj)
     .map(([prop, val]) =>
