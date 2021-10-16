@@ -208,6 +208,10 @@ joplin.plugins.register({
   onStart: async function () {
     log("\nKANBAN PLUGIN STARTED\n")
 
+    // Have to call this on start otherwise layout from prevoius session is lost
+    await showBoard()
+    hideBoard()
+
     joplin.workspace.onNoteSelectionChange(
       ({ value }: { value: [string?] }) => {
         const newNoteId = value?.[0];
