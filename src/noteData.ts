@@ -55,6 +55,7 @@ async function search(query: string): Promise<NoteData[]> {
     has_more: boolean;
   };
 
+  let allNotes: any[] = [];
   const result: NoteData[] = [];
   let page = 1;
   while (true) {
@@ -62,6 +63,11 @@ async function search(query: string): Promise<NoteData[]> {
       query === "" ? ["notes"] : ["search"],
       { query, page, fields }
     );
+    allNotes = allNotes.concat(notes)
+
+    if (!hasMore) break;
+    else page++;
+  }
 
     for (const {
       id,
@@ -72,7 +78,7 @@ async function search(query: string): Promise<NoteData[]> {
       todo_due,
       order,
       created_time,
-    } of notes) {
+    } of allNotes) {
       const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
         ({ title }: { title: string }) => title
       );
@@ -88,10 +94,6 @@ async function search(query: string): Promise<NoteData[]> {
         createdTime: created_time,
       });
     }
-
-    if (!hasMore) break;
-    else page++;
-  }
 
   return result;
 }
