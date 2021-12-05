@@ -56,7 +56,6 @@ async function search(query: string): Promise<NoteData[]> {
   };
 
   let allNotes: any[] = [];
-  const result: NoteData[] = [];
   let page = 1;
   while (true) {
     const { items: notes, has_more: hasMore }: Response = await joplin.data.get(
@@ -69,31 +68,19 @@ async function search(query: string): Promise<NoteData[]> {
     else page++;
   }
 
-    for (const {
-      id,
-      title,
-      parent_id,
-      is_todo,
-      todo_completed,
-      todo_due,
-      order,
-      created_time,
-    } of allNotes) {
-      const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
-        ({ title }: { title: string }) => title
-      );
-      result.push({
-        id,
-        title,
-        tags,
-        isTodo: !!is_todo,
-        isCompleted: !!todo_completed,
-        notebookId: parent_id,
-        due: todo_due,
-        order: order === 0 ? created_time : order,
-        createdTime: created_time,
-      });
-    }
+  const inflightTagRequests = allNotes.map((note) => joplin.data.get(["notes", note.id, "tags"]))
+  const tagsForNotes = (await Promise.all(inflightTagRequests)).map(r => r.items.map(({ title }: {title: string}) => title))
+  const result = allNotes.map((note, index) => <NoteData>({
+    id: note.id,
+    title: note.title,
+    tags: tagsForNotes[index],
+    isTodo: !!note.is_todo,
+    isCompleted: !!note.todo_completed,
+    notebookId: note.parent_id ,
+    due: note.todo_due,
+    order: note.order === 0 ? note.created_time : note.order,
+    createdTime: note.created_time
+  }))
 
   return result;
 }
