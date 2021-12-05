@@ -207,7 +207,7 @@ export async function createNotebook(notebookPath: string): Promise<string> {
 export async function resolveNotebookPath(
   notebookPath: string
 ): Promise<string | null> {
-  const { items: foldersData } = await joplin.data.get(["folders"]);
+  const foldersData = await getAllNotebooks()
   const parts = notebookPath.split("/");
 
   let parentId = "";
@@ -230,7 +230,7 @@ export async function resolveNotebookPath(
 export async function findAllChildrenNotebook(
   parentId: string
 ): Promise<string[]> {
-  const { items: foldersData } = await joplin.data.get(["folders"]);
+  const foldersData = await getAllNotebooks()
 
   let children: string[] = [];
   const recurse = (id: string) => {
