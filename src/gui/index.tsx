@@ -101,7 +101,7 @@ function App() {
       )}
     </Container>
   ) : (
-    <div></div>
+    <h1>Loading...</h1>
   );
 
   return (
