@@ -55,43 +55,32 @@ async function search(query: string): Promise<NoteData[]> {
     has_more: boolean;
   };
 
-  const result: NoteData[] = [];
+  let allNotes: any[] = [];
   let page = 1;
   while (true) {
     const { items: notes, has_more: hasMore }: Response = await joplin.data.get(
       query === "" ? ["notes"] : ["search"],
       { query, page, fields }
     );
-
-    for (const {
-      id,
-      title,
-      parent_id,
-      is_todo,
-      todo_completed,
-      todo_due,
-      order,
-      created_time,
-    } of notes) {
-      const tags = (await joplin.data.get(["notes", id, "tags"])).items.map(
-        ({ title }: { title: string }) => title
-      );
-      result.push({
-        id,
-        title,
-        tags,
-        isTodo: !!is_todo,
-        isCompleted: !!todo_completed,
-        notebookId: parent_id,
-        due: todo_due,
-        order: order === 0 ? created_time : order,
-        createdTime: created_time,
-      });
-    }
+    allNotes = allNotes.concat(notes)
 
     if (!hasMore) break;
     else page++;
   }
+
+  const inflightTagRequests = allNotes.map((note) => joplin.data.get(["notes", note.id, "tags"]))
+  const tagsForNotes = (await Promise.all(inflightTagRequests)).map(r => r.items.map(({ title }: {title: string}) => title))
+  const result = allNotes.map((note, index) => <NoteData>({
+    id: note.id,
+    title: note.title,
+    tags: tagsForNotes[index],
+    isTodo: !!note.is_todo,
+    isCompleted: !!note.todo_completed,
+    notebookId: note.parent_id ,
+    due: note.todo_due,
+    order: note.order === 0 ? note.created_time : note.order,
+    createdTime: note.created_time
+  }))
 
   return result;
 }
@@ -207,7 +196,7 @@ export async function createNotebook(notebookPath: string): Promise<string> {
 export async function resolveNotebookPath(
   notebookPath: string
 ): Promise<string | null> {
-  const { items: foldersData } = await joplin.data.get(["folders"]);
+  const foldersData = await getAllNotebooks()
   const parts = notebookPath.split("/");
 
   let parentId = "";
@@ -230,7 +219,7 @@ export async function resolveNotebookPath(
 export async function findAllChildrenNotebook(
   parentId: string
 ): Promise<string[]> {
-  const { items: foldersData } = await joplin.data.get(["folders"]);
+  const foldersData = await getAllNotebooks()
 
   let children: string[] = [];
   const recurse = (id: string) => {

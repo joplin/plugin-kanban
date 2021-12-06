@@ -247,11 +247,11 @@ joplin.plugins.register({
     log("\nKANBAN PLUGIN STARTED\n");
 
     // Have to call this on start otherwise layout from prevoius session is lost
-    await showBoard();
-    hideBoard();
+    showBoard().then(hideBoard);
 
     joplin.workspace.onNoteSelectionChange(
       async ({ value }: { value: [string?] }) => {
+        log(`Note selection changed`);
         const newNoteId = value?.[0] as string;
         if (newNoteChangedCb && (await getNoteById(newNoteId))) newNoteChangedCb = undefined;
         if (newNoteId) handleNewlyOpenedNote(newNoteId);
