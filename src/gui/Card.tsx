@@ -26,7 +26,7 @@ export default React.forwardRef<HTMLDivElement, { note: NoteData }>(
     ]);
     if (due > 0) {
       const dueDate = new Date(due);
-      const dateStr = `${dueDate.getMonth() + 1}.${dueDate.getDate()}`;
+      const dateStr = dueDate.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
       const daysLeft = (due - Date.now()) / (1000 * 60 * 60 * 24);
       const color = daysLeft < 3 ? "red" : undefined;
       extras.push([<IoCalendarOutline size="1rem" />, dateStr, color]);
