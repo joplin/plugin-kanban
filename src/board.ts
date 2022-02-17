@@ -80,13 +80,19 @@ export function getMdTable(boardState: BoardState): string {
   const rows: string[][] = [];
   const numRows = Math.max(...boardState.columns.map((c) => c.notes.length));
   for (let i = 0; i < numRows; i++) {
-    rows[i] = boardState.columns.map((col) => col.notes[i]?.title || "");
+    rows[i] = boardState.columns.map((col) => getMdLink(col.notes[i]));
   }
 
   const body = rows.map((r) => "| " + r.join(" | ") + " |").join("\n") + "\n";
   const timestamp = `_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`;
 
   return header + headerSep + body + timestamp;
+}
+
+export function getMdLink(note: NoteData): string {
+  if ((note?.title !== undefined) && (note?.id !== undefined)) {
+    return "[" + note.title + "](:/" + note.id + ")";
+  } else return "";
 }
 
 export async function getBoardState(board?: Board): Promise<BoardState> {
