@@ -9,6 +9,7 @@ import createBoard, {
   getBoardState,
   parseConfigNote,
   getMdTable,
+  getMdList
 } from "./board";
 import {
   getConfigNote,
@@ -201,8 +202,14 @@ async function showBoard() {
         );
       }
 
-      if (msg.type !== "poll")
-        setAfterConfig(openBoard.configNoteId, getMdTable(newState));
+
+      if (msg.type !== "poll"){
+        if ((openBoard.isValid) && (openBoard.parsedConfig.display?.markdown == "list"))
+          setAfterConfig(openBoard.configNoteId, getMdList(newState));
+        else
+          setAfterConfig(openBoard.configNoteId, getMdTable(newState));
+      }
+
 
       log(
         `Sending back update to webview: \n${JSON.stringify(

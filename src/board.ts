@@ -30,6 +30,9 @@ export interface Config {
     name: string;
     backlog?: boolean;
   }[];
+  display: {
+    markdown: string;
+  };
 }
 
 interface Column {
@@ -87,6 +90,22 @@ export function getMdTable(boardState: BoardState): string {
   const timestamp = `_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`;
 
   return header + headerSep + body + timestamp;
+}
+
+export function getMdList(boardState: BoardState): string {
+  if (!boardState.columns) return "";
+
+  const numCols = boardState.columns.length;
+  const cols: string[] = [];
+  for (let i = 0; i < numCols; i++) {
+    cols[i] = ("## " + boardState.columns[i].name + "\n" +
+      boardState.columns[i].notes.map((note) => "- " + getMdLink(note)).join("\n"));
+  }
+
+  const body = cols.join("\n\n")
+  const timestamp = `\n\n_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`;
+
+  return body + timestamp;
 }
 
 export function getMdLink(note: NoteData): string {
