@@ -206,7 +206,9 @@ async function showBoard() {
       if (msg.type !== "poll"){
         if ((openBoard.isValid) && (openBoard.parsedConfig.display?.markdown == "list"))
           setAfterConfig(openBoard.configNoteId, getMdList(newState));
-        else
+        else if ((openBoard.isValid) &&
+                 (openBoard.parsedConfig.display?.markdown == "table" ||
+                  openBoard.parsedConfig.display?.markdown == undefined))
           setAfterConfig(openBoard.configNoteId, getMdTable(newState));
       }
 
