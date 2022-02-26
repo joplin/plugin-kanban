@@ -22,3 +22,7 @@ To update the plugin framework, run `npm run update`.
 In general this command tries to do the right thing - in particular it's going to merge the changes in package.json and .gitignore instead of overwriting. It will also leave "/src" as well as README.md untouched.
 
 The file that may cause problem is "webpack.config.js" because it's going to be overwritten. For that reason, if you want to change it, consider creating a separate JavaScript file and include it in webpack.config.js. That way, when you update, you only have to restore the line that include your file.
+
+## Using the plugin
+
+Learn how to use the plugin and see example kanban boards in the [project wiki](https://github.com/joplin/plugin-kanban/wiki).
