@@ -115,7 +115,6 @@ function onBuildCompleted() {
 }
 
 const baseConfig = {
-	mode: 'development',
 	target: 'node',
 	stats: 'errors-only',
 	module: {
