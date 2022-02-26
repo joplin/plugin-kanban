@@ -98,18 +98,23 @@ export function getMdList(boardState: BoardState): string {
   const numCols = boardState.columns.length;
   const cols: string[] = [];
   for (let i = 0; i < numCols; i++) {
-    cols[i] = ("## " + boardState.columns[i].name + "\n" +
-      boardState.columns[i].notes.map((note) => "- " + getMdLink(note)).join("\n"));
+    cols[i] =
+      "## " +
+      boardState.columns[i].name +
+      "\n" +
+      boardState.columns[i].notes
+        .map((note) => "- " + getMdLink(note))
+        .join("\n");
   }
 
-  const body = cols.join("\n\n")
+  const body = cols.join("\n\n");
   const timestamp = `\n\n_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`;
 
   return body + timestamp;
 }
 
 export function getMdLink(note: NoteData): string {
-  if ((note?.title !== undefined) && (note?.id !== undefined)) {
+  if (note?.title !== undefined && note?.id !== undefined) {
     return "[" + note.title + "](:/" + note.id + ")";
   } else return "";
 }
@@ -259,15 +264,12 @@ export default async function ({
     configObj.filters || {};
   const rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
-  const baseFilters: Rule["filterNote"][] = [
-    (await rules.excludeNoteId(configNoteId, rootNotebookPath, configObj))
-      .filterNote,
+  const baseFilters: Rule[] = [
+    await rules.excludeNoteId(configNoteId, rootNotebookPath, configObj),
   ];
 
   if (rootNotebookPath !== "/") {
-    baseFilters.push(
-      (await rules.notebookPath(rootNotebookPath, "", configObj)).filterNote
-    );
+    baseFilters.push(await rules.notebookPath(rootNotebookPath, "", configObj));
   }
 
   let hiddenTags: string[] = [];
@@ -276,7 +278,7 @@ export default async function ({
     if (typeof val === "boolean") val = `${val}`;
     if (val && key in rules) {
       const rule = await rules[key](val, rootNotebookPath, configObj);
-      baseFilters.push(rule.filterNote);
+      baseFilters.push(rule);
       if (key === "tag") hiddenTags.push(val as string);
       else if (key === "tags")
         hiddenTags = [...hiddenTags, ...(val as string[])];
@@ -320,7 +322,7 @@ export default async function ({
     columnNames: configObj.columns.map(({ name }) => name),
 
     sortNoteIntoColumn(note: NoteData) {
-      const matchesBaseFilters = baseFilters.every((f) => f(note));
+      const matchesBaseFilters = baseFilters.every((r) => r.filterNote(note));
       if (matchesBaseFilters) {
         const foundCol = regularColumns.find(({ rules }) =>
           rules.some(({ filterNote }) => filterNote(note))
@@ -338,7 +340,14 @@ export default async function ({
           const col = allColumns.find(
             ({ name }) => name === action.payload.colName
           ) as Column;
-          return col.rules.flatMap((r) => r.set(action.payload.noteId || ""));
+          const hasNotebookPathRule =
+            col.rules.find((r) => r.name === "notebookPath") !== undefined;
+          return [
+            ...baseFilters
+              .filter((r) => !hasNotebookPathRule || r.name !== "notebookPath")
+              .flatMap((r) => r.set(action.payload.noteId || "")),
+            ...col.rules.flatMap((r) => r.set(action.payload.noteId || "")),
+          ];
 
         case "moveNote":
           const { noteId, newColumnName, oldColumnName, newIndex } =

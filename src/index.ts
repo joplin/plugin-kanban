@@ -9,7 +9,7 @@ import createBoard, {
   getBoardState,
   parseConfigNote,
   getMdTable,
-  getMdList
+  getMdList,
 } from "./board";
 import {
   getConfigNote,
@@ -170,8 +170,8 @@ async function showBoard() {
       } else if (msg.type === "newNote") {
         await joplin.commands.execute("newNote");
         newNoteChangedCb = async (noteId: string) => {
-          if (!openBoard || !("actionToQuery" in openBoard)) return
-          msg.payload.noteId = noteId
+          if (!openBoard || !("actionToQuery" in openBoard)) return;
+          msg.payload.noteId = noteId;
           for (const query of openBoard.actionToQuery(msg, oldState)) {
             log(`Executing update: \n${JSON.stringify(query, null, 4)}\n`);
             await executeUpdateQuery(query);
@@ -202,16 +202,19 @@ async function showBoard() {
         );
       }
 
-
-      if (msg.type !== "poll"){
-        if ((openBoard.isValid) && (openBoard.parsedConfig.display?.markdown == "list"))
+      if (msg.type !== "poll") {
+        if (
+          openBoard.isValid &&
+          openBoard.parsedConfig.display?.markdown == "list"
+        )
           setAfterConfig(openBoard.configNoteId, getMdList(newState));
-        else if ((openBoard.isValid) &&
-                 (openBoard.parsedConfig.display?.markdown == "table" ||
-                  openBoard.parsedConfig.display?.markdown == undefined))
+        else if (
+          openBoard.isValid &&
+          (openBoard.parsedConfig.display?.markdown == "table" ||
+            openBoard.parsedConfig.display?.markdown == undefined)
+        )
           setAfterConfig(openBoard.configNoteId, getMdTable(newState));
       }
-
 
       log(
         `Sending back update to webview: \n${JSON.stringify(
@@ -258,11 +261,13 @@ joplin.plugins.register({
     // Have to call this on start otherwise layout from prevoius session is lost
     showBoard().then(hideBoard);
 
+    let startedHandlingNewNote = false;
     joplin.workspace.onNoteSelectionChange(
       async ({ value }: { value: [string?] }) => {
         log(`Note selection changed`);
         const newNoteId = value?.[0] as string;
-        if (newNoteChangedCb && (await getNoteById(newNoteId))) newNoteChangedCb = undefined;
+        if (newNoteChangedCb && (await getNoteById(newNoteId)))
+          newNoteChangedCb = undefined;
         if (newNoteId) handleNewlyOpenedNote(newNoteId);
       }
     );
@@ -273,14 +278,19 @@ joplin.plugins.register({
       if (openBoard.configNoteId === id) {
         if (!openBoard.isValid) await reloadConfig(id);
         if (pollCb) pollCb();
-      } else if (await isNoteIdOnBoard(id, openBoard)) {
+      } else if ((await isNoteIdOnBoard(id, openBoard)) || newNoteChangedCb) {
         log("Changed note was on the board, updating");
-        if (newNoteChangedCb) {
+        if (newNoteChangedCb && !startedHandlingNewNote) {
+          startedHandlingNewNote = true;
           const note = await getNoteById(id);
-          if (note && note.title !== "") {
-            newNoteChangedCb(id);
-            newNoteChangedCb = undefined;
-          }
+          if (note) {
+            setTimeout(() => {
+              (newNoteChangedCb as (id: string) => void)(id);
+              newNoteChangedCb = undefined;
+              startedHandlingNewNote = false;
+              if (pollCb) pollCb();
+            }, 100); // For some reason this delay is required to make adding new notes reliable
+          } else startedHandlingNewNote = false;
         }
         if (pollCb) pollCb();
       }

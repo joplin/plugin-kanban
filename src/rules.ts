@@ -12,6 +12,7 @@ import {
 import { log } from "./index";
 
 export interface Rule {
+  name: string;
   filterNote: (note: NoteData) => boolean;
   set(noteId: string): UpdateQuery[];
   unset(noteId: string): UpdateQuery[];
@@ -33,6 +34,7 @@ const rules: Rules = {
     const tagID = (await getTagId(tagName)) || (await createTag(tagName));
     log(`Tag ID: ${tagID}`);
     return {
+      name: 'tag',
       filterNote: (note: NoteData) => note.tags.includes(tagName),
       set: (noteId: string) => [
         {
@@ -57,6 +59,7 @@ const rules: Rules = {
       tagNames.map((t) => rules.tag(t, rootNbPath, config))
     );
     return {
+      name: 'tags',
       filterNote: (note: NoteData) =>
         tagRules.some(({ filterNote }) => filterNote(note)),
       set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
@@ -83,6 +86,7 @@ const rules: Rules = {
     const notebookIdsToSearch = [notebookId, ...childrenNotebookIds];
 
     return {
+      name: 'notebookPath',
       filterNote: (note: NoteData) =>
         notebookIdsToSearch.includes(note.notebookId),
       set: (noteId: string) => [
@@ -111,6 +115,7 @@ const rules: Rules = {
     if (Array.isArray(val)) val = val[0];
     const shouldBeCompeted = val.toLowerCase() === "true";
     return {
+      name: 'completed',
       filterNote: (note: NoteData) =>
         note.isTodo && note.isCompleted === shouldBeCompeted,
       set: (noteId: string) => [
@@ -137,6 +142,7 @@ const rules: Rules = {
 
   async excludeNoteId(id: string | string[]) {
     return {
+      name: 'excludeNoteId',
       filterNote: (note: NoteData) => note.id !== id,
       set: () => [],
       unset: () => [],
