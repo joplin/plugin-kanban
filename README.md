@@ -2,7 +2,7 @@
 
 This a plugin for the note taking app [Joplin](https://joplinapp.org/), which adds a flexible kanban board view for your notes, to help you organize your tasks.
 
-[[images/kanban-screenshot.png]]
+![screenshot](images/kanban-screenshot.png)
 
 ## Installation
 
