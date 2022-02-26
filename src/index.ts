@@ -118,10 +118,12 @@ async function showBoard() {
   if (!view) {
     log(`Opening board for the first time, creating`);
     view = await joplin.views.panels.create("kanban");
-    await joplin.views.panels.setHtml(
-      view,
-      '<div id="root"></div><div id="menu-root"></div>'
-    );
+    const html = `
+      <template id="date-fmt">${await joplin.settings.globalValue("dateFormat")}</template>
+      <div id="root"></div>
+      <div id="menu-root"></div>
+    `;
+    await joplin.views.panels.setHtml(view, html);
     await joplin.views.panels.addScript(view, "gui/main.css");
     await joplin.views.panels.addScript(view, "gui/index.js");
     joplin.views.panels.onMessage(view, async (msg: Action) => {

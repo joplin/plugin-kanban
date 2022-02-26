@@ -2,8 +2,11 @@ import React from "react";
 import styled from "styled-components";
 import { IoMdPricetag } from "react-icons/io";
 import { IoCalendarOutline } from "react-icons/io5";
+import moment from "moment";
 
 import type { NoteData } from "../noteData";
+
+const dateFmt = document.getElementById('date-fmt')?.innerHTML || ""
 
 export default React.forwardRef<HTMLDivElement, { note: NoteData }>(
   ({ note }, ref) => {
@@ -26,8 +29,8 @@ export default React.forwardRef<HTMLDivElement, { note: NoteData }>(
     ]);
     if (due > 0) {
       const dueDate = new Date(due);
-      const dateStr = `${dueDate.getMonth() + 1}.${dueDate.getDate()}`;
-      const daysLeft = (due - Date.now()) / (1000 * 60 * 60 * 24);
+      const dateStr = moment(dueDate).format(dateFmt);
+      const daysLeft = moment().diff(moment(dueDate), 'days');
       const color = daysLeft < 3 ? "red" : undefined;
       extras.push([<IoCalendarOutline size="1rem" />, dateStr, color]);
     }
