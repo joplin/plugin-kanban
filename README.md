@@ -71,6 +71,22 @@ To give the path to `Kanban board` you should write `"Parent/Nested Parent/Kanba
 
 To edit the filters via the config dialog, click the gear icon next to the board name.
 
+### Display
+
+The kanban plugin automatically creates a static table view of your board on the configuration card. This is useful when you want to view your kanban board on a mobile device (which don't support plugins). You can change this to display as a list. 
+
+```yaml
+```kanban
+filters:
+  tag: task
+columns:
+...
+display:
+  markdown: list
+```
+
+Visual examples and more info: https://github.com/joplin/plugin-kanban/pull/19
+
 ## Further information
 
 If you want to know more about the workings of the plugin or its development check out the [original proposal](https://discourse.joplinapp.org/t/kanban-board-project/17469) and the [progress reports](https://discourse.joplinapp.org/t/kanban-board-project/17469)
