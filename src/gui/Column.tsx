@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import styled from "styled-components";
 import { IoMdAdd } from "react-icons/io";
 
-import type { NoteData } from "../noteData";
+import type { NoteData } from "../types";
 import { DispatchContext } from "./index";
 import ContextMenu from "./ContextMenu";
 import DraggableCard from "./DraggableCard";

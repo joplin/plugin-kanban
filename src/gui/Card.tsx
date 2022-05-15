@@ -4,7 +4,7 @@ import { IoMdPricetag } from "react-icons/io";
 import { IoCalendarOutline } from "react-icons/io5";
 import moment from "moment";
 
-import type { NoteData } from "../noteData";
+import type { NoteData } from "../types";
 
 const dateFmt = document.getElementById('date-fmt')?.innerHTML || ""
 

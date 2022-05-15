@@ -1,400 +1,316 @@
-import * as yaml from "js-yaml";
+import { getNotebookPath, getNoteById } from "./noteData";
+
+import rules from "./rules";
+import { parseConfigNote } from "./parser";
+import { Action } from "./actions";
 import {
-  getNotebookPath,
-  getNoteById,
-  searchNotes,
   NoteData,
-} from "./noteData";
-
-import rules, { Rule } from "./rules";
-import { ConfigNote, UpdateQuery } from "./noteData";
-import type { Action } from "./actions";
-import type { BoardState } from "./gui/hooks";
-
-export interface Message {
-  id: string;
-  title: string;
-  severity: "info" | "warning" | "error";
-  details?: string;
-  actions: string[];
-}
-
-export type RuleValue = string | string[] | boolean | undefined;
-export interface Config {
-  filters: {
-    [ruleName: string]: RuleValue;
-    rootNotebookPath?: string;
-  };
-  columns: {
-    [ruleName: string]: RuleValue;
-    name: string;
-    backlog?: boolean;
-  }[];
-  display: {
-    markdown: string;
-  };
-}
+  UpdateQuery,
+  BoardState,
+  Rule,
+  Message,
+  Config,
+} from "./types";
 
 interface Column {
   name: string;
   rules: Rule[];
 }
 
-interface BoardBase {
-  isValid: boolean;
-  configNoteId: string;
-  boardName: string;
-  configYaml: string;
-}
+/**
+ * Class representing a kanban board instance.
+ * Keeps track of the active configuration and rules.
+ *
+ * After creating an instance, call `loadConfig` with the yaml config string.
+ * Until this method has been called, the board is invalid.
+ *
+ * An instance of this class is bound to a config note with a specific id
+ * and location (it's name can change). If the config note is deleted or moved,
+ * the board should be destroyed.
+ */
+export default class Board {
+  /**
+   * Inidicates whether the board's config was valid (can be rendered).
+   * It is also false if `loadConfig` has't been called yet.
+   */
+  public isValid: boolean = false;
 
-interface ValidBoard extends BoardBase {
-  isValid: true;
-  parsedConfig: Config;
-  columnNames: string[];
-  rootNotebookName: string;
-  hiddenTags: string[];
-  sortNoteIntoColumn(note: NoteData): string | null;
-  actionToQuery(action: Action, boardState: BoardState): UpdateQuery[];
-}
+  /**
+   * List of error messages to show in case of an invalid board.
+   */
+  public errorMessages: Message[] = [];
 
-interface InvalidBoard extends BoardBase {
-  isValid: false;
-  errorMessages: Message[];
-}
+  /**
+   * The raw yaml string. Empty until `loadConfig` is called.
+   */
+  public configYaml = "";
 
-export type Board = ValidBoard | InvalidBoard;
+  /**
+   * The name of the notebook which holds all notes on the board.
+   * Empty until `loadConfig` is called.
+   */
+  public rootNotebookName = "";
 
-export const getYamlConfig = (boardNoteBody: string): string | null => {
-  const configRegex = /^```kanban(.*)```/ms;
-  const match = boardNoteBody.match(configRegex);
-  if (!match || match.length < 2) return null;
-  return match[1];
-};
+  /**
+   * List of tags that should not be displayed on cards. We include
+   * tags here which are part of filters, because they would show up
+   * on all cards (notes).
+   */
+  public hiddenTags: string[] = [];
 
-export function getMdTable(boardState: BoardState): string {
-  if (!boardState.columns) return "";
+  /**
+   * Column names, in the order they should be displayed.
+   */
+  public columnNames: string[] = [];
 
-  const separator = "---";
-  const colNames = boardState.columns.map((col) => col.name);
+  /**
+   * The parsed dictionary form of the YAML config. Null if board is invalid
+   * or `loadConfig` hasn't been called yet.
+   */
+  public parsedConfig: Config | null = null;
 
-  const header = colNames.join(" | ") + "\n";
-  const headerSep = colNames.map(() => separator).join(" | ") + "\n";
+  private baseFilters: Rule[] = [];
+  private allColumns: Column[] = [];
+  private nonBacklogColumns: Column[] = [];
+  private backlogColumn: Column | null = null;
 
-  const rows: string[][] = [];
-  const numRows = Math.max(...boardState.columns.map((c) => c.notes.length));
-  for (let i = 0; i < numRows; i++) {
-    rows[i] = boardState.columns.map((col) => getMdLink(col.notes[i]));
+  constructor(
+    public readonly configNoteId: string,
+    public readonly boardNotebookId: string,
+    public boardName: string
+  ) {}
+
+  /**
+   * Reset the properties of the board when an invalid config is loaded.
+   */
+  private reset() {
+    this.rootNotebookName = "";
+    this.hiddenTags = [];
+    this.columnNames = [];
+    this.errorMessages = [];
+    this.parsedConfig = null;
   }
 
-  const body = rows.map((r) => "| " + r.join(" | ") + " |").join("\n") + "\n";
-  const timestamp = `_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`;
-
-  return header + headerSep + body + timestamp;
-}
-
-export function getMdList(boardState: BoardState): string {
-  if (!boardState.columns) return "";
-
-  const numCols = boardState.columns.length;
-  const cols: string[] = [];
-  for (let i = 0; i < numCols; i++) {
-    cols[i] =
-      "## " +
-      boardState.columns[i].name +
-      "\n" +
-      boardState.columns[i].notes
-        .map((note) => "- " + getMdLink(note))
-        .join("\n");
-  }
-
-  const body = cols.join("\n\n");
-  const timestamp = `\n\n_Last updated at ${new Date().toLocaleString()} by Kanban plugin_`;
-
-  return body + timestamp;
-}
-
-export function getMdLink(note: NoteData): string {
-  if (note?.title !== undefined && note?.id !== undefined) {
-    return "[" + note.title + "](:/" + note.id + ")";
-  } else return "";
-}
-
-export async function getBoardState(board?: Board): Promise<BoardState> {
-  if (!board) throw new Error("No open board");
-
-  const state: BoardState = {
-    name: board.boardName,
-    messages: [],
-    hiddenTags: [],
-  };
-
-  if (board.isValid) {
-    const allNotes = await searchNotes(board.rootNotebookName);
-    const sortedNotes: { [col: string]: NoteData[] } = {};
-    board.columnNames.forEach((n) => (sortedNotes[n] = []));
-    for (const note of allNotes) {
-      const colName = board.sortNoteIntoColumn(note);
-      if (colName) sortedNotes[colName].push(note);
+  /**
+   * Load a new yaml config for this board.
+   *
+   * First validates the config, then initializes all rules and filters.
+   *
+   * **Warning**: rule initializers can have side effects (eg. creating missing tags),
+   * but in all cases they should be idempotent.
+   *
+   * @returns true if config was valid, false otherwise
+   */
+  async loadConfig(configYaml: string): Promise<boolean> {
+    this.configYaml = configYaml;
+    const { config: configObj, error } = parseConfigNote(configYaml);
+    if (!configObj) {
+      this.isValid = false;
+      this.errorMessages = [error as Message];
+      return false;
     }
+    this.reset();
+    this.parsedConfig = configObj;
+    this.isValid = true;
 
-    const sortedColumns: BoardState["columns"] = Object.entries(
-      sortedNotes
-    ).map(([name, notes]) => ({ name, notes }));
+    // First, find out which notebook is the root
+    const { rootNotebookPath = await getNotebookPath(this.boardNotebookId) } =
+      configObj.filters || {};
+    this.rootNotebookName = rootNotebookPath.split("/").pop() as string;
 
-    Object.values(sortedColumns).forEach((col) =>
-      col.notes.sort((a, b) => {
-        if (a.order < b.order) return +1;
-        if (a.order > b.order) return -1;
-        return a.createdTime < b.createdTime ? +1 : -1;
-      })
-    );
-    state.columns = sortedColumns;
-    state.hiddenTags = board.hiddenTags;
-  } else {
-    state.messages = board.errorMessages;
-  }
+    this.baseFilters = [
+      // Exclude the config note
+      await rules.excludeNoteId(this.configNoteId, rootNotebookPath, configObj),
+    ];
 
-  return state;
-}
-
-export async function isNoteIdOnBoard(
-  id: string,
-  board: Board | undefined
-): Promise<boolean> {
-  if (!board || !board.isValid) return false;
-  const note = await getNoteById(id);
-  if (!note) return true;
-  return board.sortNoteIntoColumn(note) !== null;
-}
-
-export const parseConfigNote = (
-  yamlConfig: string
-): { config?: Config; error?: Message } => {
-  try {
-    const fixedYaml = yamlConfig.replace(/\t/g, "  ");
-    const configObj = yaml.load(fixedYaml) as Config;
-    const configError = validateConfig(configObj);
-    if (configError) return { error: configError };
-    return { config: configObj };
-  } catch (e) {
-    return {
-      error: {
-        id: "parseError",
-        severity: "error",
-        title: "YAML Parse error",
-        details: e.message,
-        actions: [],
-      },
-    };
-  }
-};
-
-const configErr = (title: string, details?: string): Message => ({
-  id: "configError",
-  severity: "error",
-  title,
-  details,
-  actions: [],
-});
-
-const validateConfig = (config: Config | {} | null): Message | null => {
-  if (!config || typeof config !== "object")
-    return configErr("Configuration is empty");
-  if (!("columns" in config)) return configErr("There are no columns defined!");
-  if (!Array.isArray(config.columns))
-    return configErr("Columns has to be a list");
-  if (config.columns.length === 0)
-    return configErr("You have to define at least one column");
-
-  if ("filters" in config) {
-    if (typeof config.filters !== "object" || Array.isArray(config.filters))
-      return configErr("Filters has to contain a dictionary of rules");
-    for (const key in config.filters) {
-      if (!(key in rules) && key !== "rootNotebookPath")
-        return configErr(`Invalid rule type "${key}" in filters`);
-    }
-  }
-
-  for (const col of config.columns) {
-    if (typeof col !== "object" || Array.isArray(col))
-      return configErr(
-        `Column #${config.columns.indexOf(col) + 1} is not a dictionary`
+    // Restrict to root notebook
+    if (rootNotebookPath !== "/") {
+      this.baseFilters.push(
+        await rules.notebookPath(rootNotebookPath, "", configObj)
       );
-    if (!("name" in col) || typeof col.name !== "string" || col.name === "")
-      return configErr(
-        `Column #${config.columns.indexOf(col) + 1} has no name!`
-      );
-
-    const isBacklog = "backlog" in col && col.backlog;
-    for (const key in col) {
-      if (!(key in rules) && key !== "backlog" && key !== "name")
-        return configErr(`Invalid rule type "${key}" in column "${col.name}"`);
-      if (isBacklog && key !== "backlog" && key !== "name")
-        return configErr(
-          `If a column is marked as backlog, it cannot have any other rules specified. Remove ${key} rule from ${col.name}!`
-        );
     }
-  }
 
-  return null;
-};
-
-export default async function ({
-  id: configNoteId,
-  title: boardName,
-  body: configBody,
-  parent_id: boardNotebookId,
-}: ConfigNote): Promise<Board | null> {
-  const configYaml = getYamlConfig(configBody);
-  if (!configYaml) return null;
-
-  const boardBase: BoardBase = {
-    boardName,
-    configNoteId,
-    configYaml,
-    isValid: false,
-  };
-
-  const { config: configObj, error } = parseConfigNote(configYaml);
-  if (!configObj) {
-    return { ...boardBase, isValid: false, errorMessages: [error as Message] };
-  }
-
-  const { rootNotebookPath = await getNotebookPath(boardNotebookId) } =
-    configObj.filters || {};
-  const rootNotebookName = rootNotebookPath.split("/").pop() as string;
-
-  const baseFilters: Rule[] = [
-    await rules.excludeNoteId(configNoteId, rootNotebookPath, configObj),
-  ];
-
-  if (rootNotebookPath !== "/") {
-    baseFilters.push(await rules.notebookPath(rootNotebookPath, "", configObj));
-  }
-
-  let hiddenTags: string[] = [];
-  for (const key in configObj.filters) {
-    let val = configObj.filters[key];
-    if (typeof val === "boolean") val = `${val}`;
-    if (val && key in rules) {
-      const rule = await rules[key](val, rootNotebookPath, configObj);
-      baseFilters.push(rule);
-      if (key === "tag") hiddenTags.push(val as string);
-      else if (key === "tags")
-        hiddenTags = [...hiddenTags, ...(val as string[])];
-    }
-  }
-
-  let backlogCol: Column | undefined;
-  const regularColumns: Column[] = [];
-  const allColumns: Column[] = [];
-  for (const col of configObj.columns) {
-    const newCol: Column = {
-      name: col.name,
-      rules: [],
-    };
-    allColumns.push(newCol);
-
-    if (col.backlog) {
-      backlogCol = newCol;
-    } else {
-      for (const key in col) {
-        let val = col[key];
-        if (typeof val === "boolean") val = `${val}`;
-        if (val && key in rules) {
-          const rule = await rules[key](val, rootNotebookPath, configObj);
-          newCol.rules.push(rule);
-          if (key === "tag") hiddenTags.push(val as string);
-          else if (key === "tags")
-            hiddenTags = [...hiddenTags, ...(val as string[])];
-        }
+    // Process filters
+    this.hiddenTags = [];
+    for (const key in configObj.filters) {
+      let val = configObj.filters[key];
+      if (typeof val === "boolean") val = `${val}`;
+      if (val && key in rules) {
+        const rule = await rules[key](val, rootNotebookPath, configObj);
+        this.baseFilters.push(rule);
+        if (key === "tag") this.hiddenTags.push(val as string);
+        else if (key === "tags")
+          this.hiddenTags = [...this.hiddenTags, ...(val as string[])];
       }
-      regularColumns.push(newCol);
     }
-  }
 
-  const board: Board = {
-    ...boardBase,
-    isValid: true,
-    rootNotebookName,
-    parsedConfig: configObj,
-    hiddenTags,
-    columnNames: configObj.columns.map(({ name }) => name),
+    // Process columns
+    this.backlogColumn = null;
+    this.allColumns = [];
+    this.nonBacklogColumns = [];
+    for (const col of configObj.columns) {
+      const newCol: Column = {
+        name: col.name,
+        rules: [],
+      };
+      this.columnNames.push(col.name)
+      this.allColumns.push(newCol);
 
-    sortNoteIntoColumn(note: NoteData) {
-      const matchesBaseFilters = baseFilters.every((r) => r.filterNote(note));
-      if (matchesBaseFilters) {
-        const foundCol = regularColumns.find(({ rules }) =>
-          rules.some(({ filterNote }) => filterNote(note))
-        );
-        if (foundCol) return foundCol.name;
-        if (backlogCol) return backlogCol.name;
-      }
-
-      return null;
-    },
-
-    actionToQuery(action: Action, boardState: BoardState) {
-      switch (action.type) {
-        case "newNote":
-          const col = allColumns.find(
-            ({ name }) => name === action.payload.colName
-          ) as Column;
-          const hasNotebookPathRule =
-            col.rules.find((r) => r.name === "notebookPath") !== undefined;
-          return [
-            ...baseFilters
-              .filter((r) => !hasNotebookPathRule || r.name !== "notebookPath")
-              .flatMap((r) => r.set(action.payload.noteId || "")),
-            ...col.rules.flatMap((r) => r.set(action.payload.noteId || "")),
-          ];
-
-        case "moveNote":
-          const { noteId, newColumnName, oldColumnName, newIndex } =
-            action.payload;
-          const newCol = allColumns.find(
-            ({ name }) => name === newColumnName
-          ) as Column;
-          const oldCol = allColumns.find(
-            ({ name }) => name === oldColumnName
-          ) as Column;
-
-          const unsetQueries = oldCol.rules.flatMap((r) => r.unset(noteId));
-          const setQueries = newCol.rules.flatMap((r) => r.set(noteId));
-          const queries: UpdateQuery[] = [...unsetQueries, ...setQueries];
-
-          const setOrder = (note: string, order: number) =>
-            queries.push({
-              type: "put",
-              path: ["notes", note],
-              body: { order },
-            });
-          const notesInCol = boardState.columns?.find(
-            (col) => col.name === newColumnName
-          )?.notes as NoteData[];
-          const notes = notesInCol.filter((note) => note.id !== noteId);
-          if (notes.length > 0) {
-            if (newIndex === 0) {
-              setOrder(noteId, notes[0].order + 1);
-            } else if (newIndex >= notes.length) {
-              setOrder(noteId, notes[notes.length - 1].order - 1);
-            } else {
-              const newOrder = notes[newIndex - 1].order - 1;
-              setOrder(noteId, newOrder);
-              const notesAfter = notesInCol.slice(newIndex);
-              notesAfter.forEach(
-                (note, idx) =>
-                  note.id !== noteId && setOrder(note.id, newOrder - 1 - idx)
-              );
-            }
+      if (col.backlog) {
+        // Backlog column can have no rules
+        this.backlogColumn = newCol;
+      } else {
+        for (const key in col) {
+          let val = col[key];
+          if (typeof val === "boolean") val = `${val}`;
+          if (val && key in rules) {
+            const rule = await rules[key](val, rootNotebookPath, configObj);
+            newCol.rules.push(rule);
+            if (key === "tag") this.hiddenTags.push(val as string);
+            else if (key === "tags")
+              this.hiddenTags = [...this.hiddenTags, ...(val as string[])];
           }
-
-          return queries;
-        default:
-          throw new Error("Unknown action " + action.type);
+        }
+        this.nonBacklogColumns.push(newCol);
       }
-    },
-  };
+    }
 
-  return board;
+    return true;
+  }
+
+  /**
+   * Check which column the given note belongs to.
+   * Return its name or null if none of them.
+   * If multiple columns could match, return the first (leftmost) one.
+   */
+  sortNoteIntoColumn(note: NoteData): string | null {
+    const matchesBaseFilters = this.baseFilters.every((r) =>
+      r.filterNote(note)
+    );
+    if (matchesBaseFilters) {
+      const foundCol = this.nonBacklogColumns.find(({ rules }) =>
+        rules.some(({ filterNote }) => filterNote(note))
+      );
+      if (foundCol) return foundCol.name;
+      if (this.backlogColumn) return this.backlogColumn.name;
+    }
+
+    return null;
+  }
+
+  /**
+   * Check whether the given note is on the board.
+   */
+  async isNoteIdOnBoard(id: string): Promise<boolean> {
+    if (!this.isValid) return false;
+    const note = await getNoteById(id);
+    if (!note) return true;
+    return this.sortNoteIntoColumn(note) !== null;
+  }
+
+  /**
+   * Given a list of all notes in the notebook, return the latest board state,
+   * i.e. sorted columns, messages, and hidden tags.
+   */
+  async getBoardState(allNotes: NoteData[]): Promise<BoardState> {
+    const state: BoardState = {
+      name: this.boardName,
+      messages: [],
+      hiddenTags: [],
+    };
+
+    if (this.isValid) {
+      const sortedNotes: { [col: string]: NoteData[] } = {};
+      this.columnNames.forEach((n) => (sortedNotes[n] = []));
+      for (const note of allNotes) {
+        const colName = this.sortNoteIntoColumn(note);
+        if (colName) sortedNotes[colName].push(note);
+      }
+
+      const sortedColumns: BoardState["columns"] = Object.entries(
+        sortedNotes
+      ).map(([name, notes]) => ({ name, notes }));
+
+      Object.values(sortedColumns).forEach((col) =>
+        col.notes.sort((a, b) => {
+          if (a.order < b.order) return +1;
+          if (a.order > b.order) return -1;
+          return a.createdTime < b.createdTime ? +1 : -1;
+        })
+      );
+      state.columns = sortedColumns;
+      state.hiddenTags = this.hiddenTags;
+    } else {
+      state.messages = this.errorMessages;
+    }
+
+    return state;
+  }
+
+  /**
+   * Based on an action, get a list of update queries needed to update the note database
+   * so that the board reached the desired state.
+   *
+   * Return an empty list if can't handle the action type.
+   */
+  getBoardUpdate(action: Action, boardState: BoardState) {
+    switch (action.type) {
+      case "newNote":
+        const col = this.allColumns.find(
+          ({ name }) => name === action.payload.colName
+        ) as Column;
+        const hasNotebookPathRule =
+          col.rules.find((r) => r.name === "notebookPath") !== undefined;
+        return [
+          ...this.baseFilters
+            .filter((r) => !hasNotebookPathRule || r.name !== "notebookPath")
+            .flatMap((r) => r.set(action.payload.noteId || "")),
+          ...col.rules.flatMap((r) => r.set(action.payload.noteId || "")),
+        ];
+
+      case "moveNote":
+        const { noteId, newColumnName, oldColumnName, newIndex } =
+          action.payload;
+        const newCol = this.allColumns.find(
+          ({ name }) => name === newColumnName
+        ) as Column;
+        const oldCol = this.allColumns.find(
+          ({ name }) => name === oldColumnName
+        ) as Column;
+
+        const unsetQueries = oldCol.rules.flatMap((r) => r.unset(noteId));
+        const setQueries = newCol.rules.flatMap((r) => r.set(noteId));
+        const queries: UpdateQuery[] = [...unsetQueries, ...setQueries];
+
+        const setOrder = (note: string, order: number) =>
+          queries.push({
+            type: "put",
+            path: ["notes", note],
+            body: { order },
+          });
+        const notesInCol = boardState.columns?.find(
+          (col) => col.name === newColumnName
+        )?.notes as NoteData[];
+        const notes = notesInCol.filter((note) => note.id !== noteId);
+        if (notes.length > 0) {
+          if (newIndex === 0) {
+            setOrder(noteId, notes[0].order + 1);
+          } else if (newIndex >= notes.length) {
+            setOrder(noteId, notes[notes.length - 1].order - 1);
+          } else {
+            const newOrder = notes[newIndex - 1].order - 1;
+            setOrder(noteId, newOrder);
+            const notesAfter = notesInCol.slice(newIndex);
+            notesAfter.forEach(
+              (note, idx) =>
+                note.id !== noteId && setOrder(note.id, newOrder - 1 - idx)
+            );
+          }
+        }
+
+        return queries;
+    }
+
+    return [];
+  }
 }

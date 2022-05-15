@@ -7,7 +7,7 @@ import { capitalize } from "../utils";
 import { DispatchFn, useRemoteBoard } from "./hooks";
 import { DragDropContext } from "./DragDrop";
 import Column from "./Column";
-import type { Message } from "../board";
+import type { Message } from "../types";
 
 export const DispatchContext = React.createContext<DispatchFn>(async () => {});
 export const IsWaitingContext = React.createContext<boolean>(false);

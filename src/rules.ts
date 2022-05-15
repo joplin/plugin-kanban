@@ -1,40 +1,27 @@
-import { Config } from "./board";
 import {
   getTagId,
-  UpdateQuery,
-  NoteData,
   resolveNotebookPath,
   findAllChildrenNotebook,
   createTag,
   createNotebook,
 } from "./noteData";
+import type { Config, Rule, NoteData, UpdateQuery } from "./types";
 
-import { log } from "./index";
-
-export interface Rule {
-  name: string;
-  filterNote: (note: NoteData) => boolean;
-  set(noteId: string): UpdateQuery[];
-  unset(noteId: string): UpdateQuery[];
-  editorType: string;
-}
-
-export type RuleFactory = (
+type RuleFactory = (
   ruleValue: string | string[],
   rootNotebookPath: string,
   config: Config
 ) => Promise<Rule>;
 
-type Rules = { [ruleName: string]: RuleFactory };
-
-const rules: Rules = {
+/**
+ * This map contains all supported rules.
+ */
+const rules: Record<string, RuleFactory> = {
   async tag(arg: string | string[]) {
     const tagName = Array.isArray(arg) ? arg[0] : arg;
-    log(`Creating tag rule with name ${tagName}`);
     const tagID = (await getTagId(tagName)) || (await createTag(tagName));
-    log(`Tag ID: ${tagID}`);
     return {
-      name: 'tag',
+      name: "tag",
       filterNote: (note: NoteData) => note.tags.includes(tagName),
       set: (noteId: string) => [
         {
@@ -59,7 +46,7 @@ const rules: Rules = {
       tagNames.map((t) => rules.tag(t, rootNbPath, config))
     );
     return {
-      name: 'tags',
+      name: "tags",
       filterNote: (note: NoteData) =>
         tagRules.some(({ filterNote }) => filterNote(note)),
       set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
@@ -71,6 +58,7 @@ const rules: Rules = {
   async notebookPath(path: string | string[], rootNotebookPath: string) {
     if (Array.isArray(path)) path = path[0];
 
+    // Normalize path
     if (path.startsWith("/")) path = path.slice(1);
     if (path.endsWith("/")) path = path.slice(0, -1);
     if (rootNotebookPath.startsWith("/"))
@@ -86,7 +74,7 @@ const rules: Rules = {
     const notebookIdsToSearch = [notebookId, ...childrenNotebookIds];
 
     return {
-      name: 'notebookPath',
+      name: "notebookPath",
       filterNote: (note: NoteData) =>
         notebookIdsToSearch.includes(note.notebookId),
       set: (noteId: string) => [
@@ -115,7 +103,7 @@ const rules: Rules = {
     if (Array.isArray(val)) val = val[0];
     const shouldBeCompeted = val.toLowerCase() === "true";
     return {
-      name: 'completed',
+      name: "completed",
       filterNote: (note: NoteData) =>
         note.isTodo && note.isCompleted === shouldBeCompeted,
       set: (noteId: string) => [
@@ -142,7 +130,7 @@ const rules: Rules = {
 
   async excludeNoteId(id: string | string[]) {
     return {
-      name: 'excludeNoteId',
+      name: "excludeNoteId",
       filterNote: (note: NoteData) => note.id !== id,
       set: () => [],
       unset: () => [],

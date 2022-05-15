@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import * as yaml from "js-yaml";
 
-import type { Config, RuleValue } from "../board";
+import type { Config, RuleValue } from "../types";
 
 export default function (editedPath: string, inputConfig: Config) {
   const [editedKey, colIdxStr = null] = editedPath.split(".", 2) as [

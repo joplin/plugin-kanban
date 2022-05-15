@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 
 import { DispatchContext } from "./index";
 import Card from "./Card";
-import type { NoteData } from "../noteData";
+import type { NoteData } from "../types";
 
 export default React.forwardRef<HTMLDivElement, { note: NoteData }>(
   ({ note }, ref) => {

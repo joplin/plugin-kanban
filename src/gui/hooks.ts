@@ -1,18 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 
-import type { NoteData } from "../noteData";
+import type { NoteData, Message, BoardState } from "../types";
 import type { Action } from "../actions";
-import type { Message } from "../board";
-
-export interface BoardState {
-  name: string;
-  columns?: {
-    name: string;
-    notes: NoteData[];
-  }[];
-  hiddenTags: string[];
-  messages: Message[];
-}
 
 interface State {
   board?: BoardState;
@@ -30,14 +19,14 @@ export function useRemoteBoard(): [BoardState | undefined, DispatchFn] {
 
   const shouldPoll = useRef(true);
   const poll = () => {
-    webviewApi.postMessage({ type: "poll" }).then((newBoard: BoardState) => {
-      if (!newBoard) {
-        shouldPoll.current = false;
-      } else {
-        setState({ board: newBoard });
-        if (shouldPoll.current === true) poll();
-      }
-    });
+    // webviewApi.postMessage({ type: "poll" }).then((newBoard: BoardState) => {
+    //   if (!newBoard) {
+    //     shouldPoll.current = false;
+    //   } else {
+    //     setState({ board: newBoard });
+    //     if (shouldPoll.current === true) poll();
+    //   }
+    // });
   };
 
   useEffect(() => {

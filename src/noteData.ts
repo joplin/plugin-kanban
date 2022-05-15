@@ -1,32 +1,12 @@
 import joplin from "api";
+import { getUpdatedConfigNote } from "./parser";
+import { NoteData, ConfigNote, UpdateQuery } from "./types";
 
-import { log } from "./index";
-
-export interface UpdateQuery {
-  type: "post" | "delete" | "put";
-  path: string[];
-  body?: object;
-}
-
-export interface ConfigNote {
-  id: string;
-  title: string;
-  parent_id: string;
-  body: string;
-}
-
-export interface NoteData {
-  id: string;
-  title: string;
-  tags: string[];
-  notebookId: string;
-  isTodo: boolean;
-  isCompleted: boolean;
-  due: number;
-  order: number;
-  createdTime: number;
-}
-
+/**
+ * Execute the given search query and return all matching notes in the kanban format.
+ *
+ * @see https://joplinapp.org/help/#searching
+ */
 async function search(query: string): Promise<NoteData[]> {
   const fields = [
     "id",
@@ -58,33 +38,51 @@ async function search(query: string): Promise<NoteData[]> {
   let allNotes: any[] = [];
   let page = 1;
   while (true) {
+    console.log("data call get", query === "" ? ["notes"] : ["search"], {
+      query,
+      page,
+      fields,
+    });
     const { items: notes, has_more: hasMore }: Response = await joplin.data.get(
       query === "" ? ["notes"] : ["search"],
       { query, page, fields }
     );
-    allNotes = allNotes.concat(notes)
+    allNotes = allNotes.concat(notes);
 
     if (!hasMore) break;
     else page++;
   }
 
-  const inflightTagRequests = allNotes.map((note) => joplin.data.get(["notes", note.id, "tags"]))
-  const tagsForNotes = (await Promise.all(inflightTagRequests)).map(r => r.items.map(({ title }: {title: string}) => title))
-  const result = allNotes.map((note, index) => <NoteData>({
-    id: note.id,
-    title: note.title,
-    tags: tagsForNotes[index],
-    isTodo: !!note.is_todo,
-    isCompleted: !!note.todo_completed,
-    notebookId: note.parent_id ,
-    due: note.todo_due,
-    order: note.order === 0 ? note.created_time : note.order,
-    createdTime: note.created_time
-  }))
+  allNotes.forEach((note) =>
+    console.log("data call get", ["notes", note.id, "tags"])
+  );
+  const inflightTagRequests = allNotes.map((note) =>
+    joplin.data.get(["notes", note.id, "tags"])
+  );
+  const tagsForNotes = (await Promise.all(inflightTagRequests)).map((r) =>
+    r.items.map(({ title }: { title: string }) => title)
+  );
+  const result = allNotes.map(
+    (note, index) =>
+      <NoteData>{
+        id: note.id,
+        title: note.title,
+        tags: tagsForNotes[index],
+        isTodo: !!note.is_todo,
+        isCompleted: !!note.todo_completed,
+        notebookId: note.parent_id,
+        due: note.todo_due,
+        order: note.order === 0 ? note.created_time : note.order,
+        createdTime: note.created_time,
+      }
+  );
 
   return result;
 }
 
+/**
+ * Get all notes of interest using search. Can restrict search to a notebook.
+ */
 export async function searchNotes(
   rootNotebookName: string
 ): Promise<NoteData[]> {
@@ -92,65 +90,86 @@ export async function searchNotes(
   return search(query);
 }
 
+/**
+ * Get a specific note by id in the kanban format.
+ */
 export async function getNoteById(id: string): Promise<NoteData> {
   const query = `id:${id}`;
   return (await search(query))[0];
 }
 
+/**
+ * Execute an update query, produced by rules.
+ */
 export async function executeUpdateQuery(updateQuery: UpdateQuery) {
   const { type, path, body = null } = updateQuery;
   if (type === "put" && path[0] === "notes") {
     // need to save updated_time
+    console.log("data call get", path, {
+      fields: ["updated_time", "user_updated_time"],
+    });
     const { updated_time, user_updated_time } = await joplin.data.get(path, {
       fields: ["updated_time", "user_updated_time"],
     });
     const patchedBody = { ...body, updated_time, user_updated_time };
+    console.log("data call put", path, null, patchedBody);
     await joplin.data.put(path, null, patchedBody);
   } else {
+    console.log("data call", type, path, null, body);
     await joplin.data[type](path, null, body);
   }
 }
 
+/**
+ * Get the title, parent_id, body of the given note.
+ *
+ * Used for the config note, because that's the only note whose body we're interested in.
+ */
 export function getConfigNote(noteId: string): Promise<ConfigNote> {
   const fields = ["id", "title", "parent_id", "body"];
+  console.log("data call get", ["notes", noteId], { fields });
   return joplin.data.get(["notes", noteId], { fields });
 }
 
-async function setConfigNoteBody(noteId: string, newBody: string) {
+/**
+ * Update the config note with the given yaml and after text.
+ *
+ * @param config Make sure to pass in the yaml **without** ```kanban fence.
+ */
+export async function setConfigNote(
+  noteId: string,
+  config: string | null = null,
+  after: string | null = null
+) {
+  const { body: oldBody } = await getConfigNote(noteId);
+  const newBody = getUpdatedConfigNote(oldBody, config, after);
   const { id: selectedNoteId } = await joplin.workspace.selectedNote();
   if (selectedNoteId === noteId) {
     await joplin.commands.execute("editor.setText", newBody);
   }
-
+  console.log("data call put", ["notes", noteId], null, { body: newBody });
   await joplin.data.put(["notes", noteId], null, { body: newBody });
 }
 
-export async function setConfig(noteId: string, newConfig: string) {
-  const { body: oldBody } = await getConfigNote(noteId);
-  const pat = /([\s\S]*?)```kanban([\s\S]*?)```([\s\S]*)/;
-  const newBody = oldBody.replace(pat, `$1${newConfig}$3`);
-  if (oldBody !== newBody) await setConfigNoteBody(noteId, newBody);
-}
-
-export async function setAfterConfig(noteId: string, afterConfig: string) {
-  const { body: oldBody } = await getConfigNote(noteId);
-  const pat = /([\s\S]*?```kanban[\s\S]*?```)([\s\S]*)/;
-  const newBody = oldBody.replace(pat, `$1\n\n${afterConfig}`);
-  if (oldBody !== newBody) await setConfigNoteBody(noteId, newBody);
-}
-
+/**
+ * Get the id of a tag by name.
+ */
 export async function getTagId(tagName: string): Promise<string | undefined> {
+  console.log("data call get", ["search"], { query: tagName, type: "tag" });
   const {
     items: [{ id = undefined } = {}],
   } = await joplin.data.get(["search"], { query: tagName, type: "tag" });
-  log(`Found tag id for ${tagName}: ${id}`);
   return id;
 }
 
+/**
+ * Get a list of all tags.
+ */
 export async function getAllTags(): Promise<string[]> {
   let tags: string[] = [];
   let page = 1;
   while (true) {
+    console.log("data call get", ["tags"], { page });
     const {
       items: newTags,
       has_more: hasMore,
@@ -165,20 +184,31 @@ export async function getAllTags(): Promise<string[]> {
   return tags;
 }
 
+/**
+ * Create a new tag by name.
+ */
 export async function createTag(tagName: string): Promise<string> {
-  log(`Creating new tag ${tagName}`);
+  console.log("data call post", ["tags"], null, { title: tagName });
   const result = await joplin.data.post(["tags"], null, { title: tagName });
-  log(
-    `Created new tag ${tagName}, result: ${JSON.stringify(result, null, 4)}\n`
-  );
   return result.id;
 }
 
+/**
+ * Create a new notebook by path. Creates all missing parents.
+ *
+ * Think `mkdir -p`
+ *
+ * @see https://github.com/joplin/plugin-kanban#filters
+ */
 export async function createNotebook(notebookPath: string): Promise<string> {
   const parts = notebookPath.split("/");
   let parentId = "";
   for (let i = 0; i < parts.length; i++) {
     const currentPath = "/" + parts.slice(0, i + 1);
+    console.log("data call post", ["folders"], null, {
+      title: parts[i],
+      parent_id: parentId,
+    });
     const id =
       (await resolveNotebookPath(currentPath)) ||
       (
@@ -193,10 +223,15 @@ export async function createNotebook(notebookPath: string): Promise<string> {
   return parentId;
 }
 
+/**
+ * Resolve a notebook by path.
+ *
+ * @see https://github.com/joplin/plugin-kanban#filters
+ */
 export async function resolveNotebookPath(
   notebookPath: string
 ): Promise<string | null> {
-  const foldersData = await getAllNotebooks()
+  const foldersData = await getAllNotebooks();
   const parts = notebookPath.split("/");
 
   let parentId = "";
@@ -216,10 +251,13 @@ export async function resolveNotebookPath(
   return parentId;
 }
 
+/**
+ * Recusively find all notebooks within the given notebook.
+ */
 export async function findAllChildrenNotebook(
   parentId: string
 ): Promise<string[]> {
-  const foldersData = await getAllNotebooks()
+  const foldersData = await getAllNotebooks();
 
   let children: string[] = [];
   const recurse = (id: string) => {
@@ -240,10 +278,15 @@ type Folder = {
   parent_id: string;
 };
 
+/**
+ * Get a list of all notebooks, with id, title, and parent_id.
+ */
 export async function getAllNotebooks(): Promise<Folder[]> {
   let folders: Folder[] = [];
   let page = 1;
   while (true) {
+    console.log("data call get", ["folders"], { page });
+
     const {
       items: newFolders,
       has_more: hasMore,
@@ -260,6 +303,9 @@ export async function getAllNotebooks(): Promise<Folder[]> {
   return folders;
 }
 
+/**
+ * Get the path associated with the notebook id.
+ */
 export async function getNotebookPath(searchId: string): Promise<string> {
   const foldersData = await getAllNotebooks();
 

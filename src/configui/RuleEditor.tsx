@@ -4,7 +4,7 @@ import { IoIosRemoveCircleOutline } from "react-icons/io";
 // import Select from "react-select";
 import CreatableSelect from "react-select/creatable";
 
-import type { RuleValue } from "../board";
+import type { RuleValue } from "../types";
 import { capitalize } from "../utils";
 
 const prettyRuleName = (n: string) =>

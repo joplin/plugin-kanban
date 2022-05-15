@@ -5,7 +5,7 @@ import type { XYCoord } from "dnd-core";
 
 import Card from "./Card";
 import { DispatchContext } from "./index";
-import type { NoteData } from "../noteData";
+import type { NoteData } from "../types";
 
 export interface DragItem {
   index: number;

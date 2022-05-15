@@ -3,7 +3,7 @@ import { render } from "react-dom";
 import styled from "styled-components";
 import Select from "react-select";
 
-import type { Config } from "../board";
+import type { Config } from "../types";
 import useConfig from "./useConfig";
 import RuleEditor from "./RuleEditor";
 import { capitalize } from "../utils";

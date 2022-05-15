@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 
 import ClickableCard from "./ClickableCard";
 import { useDraggableCard, useDroppableCard } from "./DragDrop";
-import type { NoteData } from "../noteData";
+import type { NoteData } from "../types";
 
 interface DraggableCardProps {
   note: NoteData;
