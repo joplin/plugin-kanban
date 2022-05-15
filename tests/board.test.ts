@@ -1,496 +1,596 @@
-// import createBoard, { Board } from "../src/board";
+import type { LazyNoteData } from "../src/noteData";
+import type { NoteData } from "../src/types";
+import Board from "../src/board";
+import { getYamlConfig } from "../src/parser";
 
-// jest.mock("../src/noteData", () => ({
-//   getTagId: jest.fn((t) => t),
-//   resolveNotebookPath: jest.fn((n) => n),
-//   getNotebookPath: jest.fn((n) => n),
-//   findAllChildrenNotebook: jest.fn((n) => [`${n}/working`, `${n}/child1`, `${n}/child2`]),
-//   createTag: jest.fn((t) => t),
-//   createNotebook: jest.fn((n) => n),
-// }));
+let mockSearchRes: NoteData[][] = [];
 
-// const fenceConf = (s: string) => "```kanban\n" + s + "\n```";
+jest.mock("../src/noteData", () => ({
+  search: jest.fn(
+    (): LazyNoteData[] =>
+      mockSearchRes.shift()?.map(
+        (data) =>
+          ({
+            data,
+            _tags: data.tags,
+            knownTags: data.tags,
+            loadTags: () => undefined,
+            hasTag: (tag: string) => data.tags.includes(tag),
+            fullyLoadData: () => data,
+          } as unknown as LazyNoteData)
+      ) ?? []
+  ),
+  getNoteById: jest.fn(() => {}),
+  getTagId: jest.fn((t) => t),
+  resolveNotebookPath: jest.fn((n) => n),
+  getNotebookPath: jest.fn((n) => n),
+  findAllChildrenNotebook: jest.fn((n) => [
+    `${n}/working`,
+    `${n}/child1`,
+    `${n}/child2`,
+  ]),
+  createTag: jest.fn((t) => t),
+  createNotebook: jest.fn((n) => n),
+}));
 
-// const nbName = "nested test"
-// const parentNb = `test/${nbName}`
-// const testConfig = `
-// columns: 
-//   - 
-//     backlog: true
-//     name: Backlog
-//   - 
-//     name: "Ready for review"
-//     tag: ready
-//   - 
-//     name: Working
-//     notebookPath: working
-//   - 
-//     completed: true
-//     completedNotebook: done
-//     completedTag: done
-//     tags:
-//        - done
-//        - completed
-//     name: Done
-// filters: 
-//   rootNotebookPath: "${parentNb}"
-//   tag: task
-// `;
-// const testConfigBody = fenceConf(testConfig);
+const nbName = "nested test";
+const parentNb = `test/${nbName}`;
+const testConfig = `
+columns: 
+  - 
+    backlog: true
+    name: Backlog
+  - 
+    name: "Ready for review"
+    tag: ready
+  - 
+    name: Working
+    notebookPath: working
+  - 
+    completed: true
+    completedNotebook: done
+    completedTag: done
+    tags:
+       - done
+       - completed
+    name: Done
+filters: 
+  rootNotebookPath: "${parentNb}"
+  tag: task
+`;
+const fenceConf = (s: string) => "```kanban\n" + s + "\n```";
+const testConfigBody = fenceConf(testConfig);
+const mockTime = 1624713576;
 
-// const mockTime = 1624713576;
+const createBoard = async ({
+  id,
+  title,
+  body,
+  parent_id,
+}: {
+  id: string;
+  title: string;
+  body: string;
+  parent_id: string;
+}) => {
+  const board = new Board(id, parent_id, title);
+  const config = getYamlConfig(body);
+  if (!config) return null;
+  await board.loadConfig(config);
+  return board;
+};
 
-// describe("Board", () => {
-//   let dateNowSpy: jest.SpyInstance;
-//   beforeAll(() => {
-//     dateNowSpy = jest.spyOn(Date, "now").mockImplementation(() => mockTime);
-//   });
+const note = (data: NoteData) =>
+  ({
+    data,
+    _tags: data.tags,
+    knownTags: data.tags,
+    loadTags: () => undefined,
+    hasTag: (tag: string) => data.tags.includes(tag),
+    fullyLoadData: () => data,
+  } as unknown as LazyNoteData);
 
-//   afterAll(() => {
-//     dateNowSpy.mockRestore();
-//   });
+describe("Board", () => {
+  let dateNowSpy: jest.SpyInstance<number, []>;
+  beforeAll(() => {
+    dateNowSpy = jest.spyOn(Date, "now").mockImplementation(() => mockTime);
+  });
 
-//   it("should return null if there is no kanban config section", async () => {
-//     const board = await createBoard({
-//       id: "testid",
-//       title: "testname",
-//       body: "invalid config",
-//       parent_id: parentNb,
-//     });
-//     expect(board).toBe(null);
-//   });
+  afterAll(() => {
+    dateNowSpy.mockRestore();
+  });
 
-//   it("should return null if there is a kanban config section, but it's invalid", async () => {
-//     const board = await createBoard({
-//       id: "testid",
-//       title: "testname",
-//       body: fenceConf("notakanbanboard: true"),
-//       parent_id: parentNb,
-//     });
-//     expect(board).toBe(null);
-//   });
+  it("should return null if there is no kanban config section", async () => {
+    const board = await createBoard({
+      id: "testid",
+      title: "testname",
+      body: "invalid config",
+      parent_id: parentNb,
+    });
+    expect(board).toBe(null);
+  });
 
-//   it("should set configNoteId and boardName", async () => {
-//     const configNoteId = "testid";
-//     const boardName = "testname";
-//     const board = (await createBoard({
-//       id: configNoteId,
-//       title: boardName,
-//       body: testConfigBody,
-//       parent_id: parentNb,
-//     })) as Board;
-//     expect(board.configNoteId).toBe(configNoteId);
-//     expect(board.boardName).toBe(boardName);
-//   });
+  it("should return errors if there is a kanban config section, but it's invalid", async () => {
+    const board = await createBoard({
+      id: "testid",
+      title: "testname",
+      body: fenceConf("notakanbanboard: true"),
+      parent_id: parentNb,
+    });
+    expect(board?.errorMessages?.length).toBeGreaterThan(0);
+  });
 
-//   it("should set rootNotebookName", async () => {
-//     const configNoteId = "testid";
-//     const boardName = "testname";
-//     const board = (await createBoard({
-//       id: configNoteId,
-//       title: boardName,
-//       body: testConfigBody,
-//       parent_id: parentNb,
-//     })) as Board;
-//     expect(board.rootNotebookName).toBe(nbName);
-//   });
+  it("should set configNoteId and boardName", async () => {
+    const configNoteId = "testid";
+    const boardName = "testname";
+    const board = (await createBoard({
+      id: configNoteId,
+      title: boardName,
+      body: testConfigBody,
+      parent_id: parentNb,
+    })) as Board;
+    expect(board.configNoteId).toBe(configNoteId);
+    expect(board.boardName).toBe(boardName);
+  });
 
-//   describe("columnNames", () => {
-//     it("should contain name of each column", async () => {
-//       const board = (await createBoard({
-//         id: "testid",
-//         title: "testname",
-//         body: testConfigBody,
-//         parent_id: parentNb,
-//       })) as Board;
+  it("should set rootNotebookName", async () => {
+    const configNoteId = "testid";
+    const boardName = "testname";
+    const board = (await createBoard({
+      id: configNoteId,
+      title: boardName,
+      body: testConfigBody,
+      parent_id: parentNb,
+    })) as Board;
+    expect(board.rootNotebookName).toBe(nbName);
+  });
 
-//       expect(board.columnNames.length).toBe(4);
-//     })
-//   })
+  describe("columnNames", () => {
+    it("should contain name of each column", async () => {
+      const board = (await createBoard({
+        id: "testid",
+        title: "testname",
+        body: testConfigBody,
+        parent_id: parentNb,
+      })) as Board;
 
-//   describe("sortNoteIntoColumn", () => {
-//     it("should give null for notes not on the board", async () => {
-//         const board = (await createBoard({
-//           id: "testid",
-//           title: "testname",
-//           body: testConfigBody,
-//           parent_id: parentNb,
-//         })) as Board;
+      expect(board.columnNames.length).toBe(4);
+    });
+  });
 
-//         const col1 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: 'someid',
-//           tags: ['task'],
-//           isCompleted: false,
-//           isTodo: false,
-//         });
-//         expect(col1).toBe(null);
+  describe("sortNoteIntoColumn", () => {
+    it("should give null for notes not on the board", async () => {
+      const board = (await createBoard({
+        id: "testid",
+        title: "testname",
+        body: testConfigBody,
+        parent_id: parentNb,
+      })) as Board;
 
-//         const col2 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: parentNb,
-//           tags: [],
-//           isCompleted: false,
-//           isTodo: false,
-//         });
-//         expect(col2).toBe(null);
-//     });
+      const col1 = await board.sortNoteIntoColumn(
+        note({
+          id: "id",
+          title: "",
+          notebookId: "someid",
+          tags: ["task"],
+          isCompleted: false,
+          isTodo: false,
+          due: 0,
+          order: 0,
+          createdTime: mockTime,
+        })
+      );
+      expect(col1).toBe(null);
 
-//     it("should give null for the board note", async () => {
-//         const board = (await createBoard({
-//           id: "testid",
-//           title: "testname",
-//           body: testConfigBody,
-//           parent_id: parentNb,
-//         })) as Board;
+      const col2 = await board.sortNoteIntoColumn(
+        note({
+          id: "id",
+          title: "",
+          notebookId: parentNb,
+          tags: [],
+          isCompleted: false,
+          isTodo: false,
+          due: 0,
+          order: 0,
+          createdTime: mockTime,
+        })
+      );
+      expect(col2).toBe(null);
+    });
 
-//         const col1 = board.sortNoteIntoColumn({
-//           id: 'testid',
-//           title: '',
-//           notebookId: parentNb,
-//           tags: ['task'],
-//           isCompleted: false,
-//           isTodo: false,
-//         });
-//         expect(col1).toBe(null);
-//     })
+    it("should give null for the board note", async () => {
+      const board = (await createBoard({
+        id: "testid",
+        title: "testname",
+        body: testConfigBody,
+        parent_id: parentNb,
+      })) as Board;
 
-//     describe("backlog rule", () => {
-//       it("should put all notes here which don't fit anywhere else", async () => {
-//         const board = (await createBoard({
-//           id: "testid",
-//           title: "testname",
-//           body: testConfigBody,
-//           parent_id: parentNb,
-//         })) as Board;
+      const col1 = await board.sortNoteIntoColumn(
+        note({
+          id: "testid",
+          title: "",
+          notebookId: parentNb,
+          tags: ["task"],
+          isCompleted: false,
+          isTodo: false,
+          due: 0,
+          order: 0,
+          createdTime: mockTime,
+        })
+      );
+      expect(col1).toBe(null);
+    });
 
-//         const col1 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: parentNb,
-//           tags: ['task'],
-//           isCompleted: false,
-//           isTodo: false,
-//         });
-//         expect(col1).toBe('Backlog');
+    describe("backlog rule", () => {
+      it("should put all notes here which don't fit anywhere else", async () => {
+        const board = (await createBoard({
+          id: "testid",
+          title: "testname",
+          body: testConfigBody,
+          parent_id: parentNb,
+        })) as Board;
 
-//         const col2 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: `${parentNb}/child1`,
-//           tags: ['task', 'sometag'],
-//           isCompleted: false,
-//           isTodo: true,
-//         });
-//         expect(col2).toBe('Backlog');
-//       });
-//     });
+        const col1 = await board.sortNoteIntoColumn(
+          note({
+            id: "id",
+            title: "",
+            notebookId: parentNb,
+            tags: ["task"],
+            isCompleted: false,
+            isTodo: false,
+            due: 0,
+            order: 0,
+            createdTime: mockTime,
+          })
+        );
+        expect(col1).toBe("Backlog");
 
-//     describe("tag rule", () => {
-//       it("match all notes with given tag", async () => {
-//         const board = (await createBoard({
-//           id: "testid",
-//           title: "testname",
-//           body: testConfigBody,
-//           parent_id: parentNb,
-//         })) as Board;
+        const col2 = await board.sortNoteIntoColumn(
+          note({
+            id: "id",
+            title: "",
+            notebookId: `${parentNb}/child1`,
+            tags: ["task", "sometag"],
+            isCompleted: false,
+            isTodo: true,
+            due: 0,
+            order: 0,
+            createdTime: mockTime,
+          })
+        );
+        expect(col2).toBe("Backlog");
+      });
+    });
 
-//         const col1 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: parentNb,
-//           tags: ['task', 'ready'],
-//           isCompleted: false,
-//           isTodo: false,
-//         });
-//         expect(col1).toBe('Ready for review');
-//       });
-//     });
+    describe("tag rule", () => {
+      it("match all notes with given tag", async () => {
+        const board = (await createBoard({
+          id: "testid",
+          title: "testname",
+          body: testConfigBody,
+          parent_id: parentNb,
+        })) as Board;
 
-//     describe("tags rule", () => {
-//       it("match all notes with at least one of the given tags", async () => {
-//         const board = (await createBoard({
-//           id: "testid",
-//           title: "testname",
-//           body: testConfigBody,
-//           parent_id: parentNb,
-//         })) as Board;
+        const col1 = await board.sortNoteIntoColumn(
+          note({
+            id: "id",
+            title: "",
+            notebookId: parentNb,
+            tags: ["task", "ready"],
+            isCompleted: false,
+            isTodo: false,
+            due: 0,
+            order: 0,
+            createdTime: mockTime,
+          })
+        );
+        expect(col1).toBe("Ready for review");
+      });
+    });
 
-//         const col1 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: parentNb,
-//           tags: ['task', 'done'],
-//           isCompleted: false,
-//           isTodo: false,
-//         });
-//         expect(col1).toBe('Done');
+    describe("tags rule", () => {
+      it("match all notes with at least one of the given tags", async () => {
+        const board = (await createBoard({
+          id: "testid",
+          title: "testname",
+          body: testConfigBody,
+          parent_id: parentNb,
+        })) as Board;
 
-//         const col2 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: `${parentNb}/child1`,
-//           tags: ['task', 'completed'],
-//           isCompleted: false,
-//           isTodo: false,
-//         });
-//         expect(col2).toBe('Done');
-//       });
-//     });
+        const col1 = await board.sortNoteIntoColumn(
+          note({
+            id: "id",
+            title: "",
+            notebookId: parentNb,
+            tags: ["task", "done"],
+            isCompleted: false,
+            isTodo: false,
+            due: 0,
+            order: 0,
+            createdTime: mockTime,
+          })
+        );
+        expect(col1).toBe("Done");
 
-//     describe("notebook rule", () => {
-//       it("match all notes within the given notebook and children notebooks", async () => {
-//         const board = (await createBoard({
-//           id: "testid",
-//           title: "testname",
-//           body: testConfigBody,
-//           parent_id: parentNb,
-//         })) as Board;
+        const col2 = await board.sortNoteIntoColumn(
+          note({
+            id: "id",
+            title: "",
+            notebookId: `${parentNb}/child1`,
+            tags: ["task", "completed"],
+            isCompleted: false,
+            isTodo: false,
+            due: 0,
+            order: 0,
+            createdTime: mockTime,
+          })
+        );
+        expect(col2).toBe("Done");
+      });
+    });
 
-//         const col1 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: `${parentNb}/working`,
-//           tags: ['task'],
-//           isCompleted: false,
-//           isTodo: false,
-//         });
-//         expect(col1).toBe('Working');
-//       });
-//     });
+    describe("notebook rule", () => {
+      it("match all notes within the given notebook and children notebooks", async () => {
+        const board = (await createBoard({
+          id: "testid",
+          title: "testname",
+          body: testConfigBody,
+          parent_id: parentNb,
+        })) as Board;
 
-//     describe("completed rule", () => {
-//       it("match all completed todos", async () => {
-//         const board = (await createBoard({
-//           id: "testid",
-//           title: "testname",
-//           body: testConfigBody,
-//           parent_id: parentNb,
-//         })) as Board;
+        const col1 = await board.sortNoteIntoColumn(
+          note({
+            id: "id",
+            title: "",
+            notebookId: `${parentNb}/working`,
+            tags: ["task"],
+            isCompleted: false,
+            isTodo: false,
+            due: 0,
+            order: 0,
+            createdTime: mockTime,
+          })
+        );
+        expect(col1).toBe("Working");
+      });
+    });
 
-//         const col1 = board.sortNoteIntoColumn({
-//           id: 'id',
-//           title: '',
-//           notebookId: parentNb,
-//           tags: ['task'],
-//           isCompleted: true,
-//           isTodo: true,
-//         });
-//         expect(col1).toBe('Done');
-//       });
-//     });
-//   });
+    describe("completed rule", () => {
+      it("match all completed todos", async () => {
+        const board = (await createBoard({
+          id: "testid",
+          title: "testname",
+          body: testConfigBody,
+          parent_id: parentNb,
+        })) as Board;
 
-//   describe("actionToQuery", () => {
-//     describe("moveNote action", () => {
-//       describe("unset rules", () => {
-//         it("should emit update to unset tag", async () => {
-//           const board = (await createBoard({
-//             id: "testid",
-//             title: "testname",
-//             body: testConfigBody,
-//             parent_id: parentNb,
-//           })) as Board;
+        const col1 = await board.sortNoteIntoColumn(
+          note({
+            id: "id",
+            title: "",
+            notebookId: parentNb,
+            tags: ["task"],
+            isCompleted: true,
+            isTodo: true,
+            due: 0,
+            order: 0,
+            createdTime: mockTime,
+          })
+        );
+        expect(col1).toBe("Done");
+      });
+    });
+  });
 
-//           const update = board.actionToQuery({
-//             type: "moveNote",
-//             payload: {
-//               noteId: "noteid",
-//               oldColumnName: "Ready for review",
-//               newColumnName: "Working",
-//             },
-//           });
+  //   describe.skip("actionToQuery", () => {
+  //     describe("moveNote action", () => {
+  //       describe("unset rules", () => {
+  //         it("should emit update to unset tag", async () => {
+  //           const board = (await createBoard({
+  //             id: "testid",
+  //             title: "testname",
+  //             body: testConfigBody,
+  //             parent_id: parentNb,
+  //           })) as Board;
 
-//           expect(update).toContainEqual({
-//             type: "delete",
-//             path: ["tags", "ready", "notes", "noteid"],
-//           });
-//         });
+  //           const update = board.actionToQuery({
+  //             type: "moveNote",
+  //             payload: {
+  //               noteId: "noteid",
+  //               oldColumnName: "Ready for review",
+  //               newColumnName: "Working",
+  //             },
+  //           });
 
-//         it("should emit update to unset multiple tags", async () => {
-//           const board = (await createBoard({
-//             id: "testid",
-//             title: "testname",
-//             body: testConfigBody,
-//             parent_id: parentNb,
-//           })) as Board;
+  //           expect(update).toContainEqual({
+  //             type: "delete",
+  //             path: ["tags", "ready", "notes", "noteid"],
+  //           });
+  //         });
 
-//           const update = board.actionToQuery({
-//             type: "moveNote",
-//             payload: {
-//               noteId: "noteid",
-//               oldColumnName: "Done",
-//               newColumnName: "Working",
-//             },
-//           });
+  //         it("should emit update to unset multiple tags", async () => {
+  //           const board = (await createBoard({
+  //             id: "testid",
+  //             title: "testname",
+  //             body: testConfigBody,
+  //             parent_id: parentNb,
+  //           })) as Board;
 
-//           expect(update).toContainEqual({
-//             type: "delete",
-//             path: ["tags", "done", "notes", "noteid"],
-//           });
-//           expect(update).toContainEqual({
-//             type: "delete",
-//             path: ["tags", "completed", "notes", "noteid"],
-//           });
-//         });
+  //           const update = board.actionToQuery({
+  //             type: "moveNote",
+  //             payload: {
+  //               noteId: "noteid",
+  //               oldColumnName: "Done",
+  //               newColumnName: "Working",
+  //             },
+  //           });
 
-//         it("should emit update to unset notebook", async () => {
-//           const board = (await createBoard({
-//             id: "testid",
-//             title: "testname",
-//             body: testConfigBody,
-//             parent_id: parentNb,
-//           })) as Board;
+  //           expect(update).toContainEqual({
+  //             type: "delete",
+  //             path: ["tags", "done", "notes", "noteid"],
+  //           });
+  //           expect(update).toContainEqual({
+  //             type: "delete",
+  //             path: ["tags", "completed", "notes", "noteid"],
+  //           });
+  //         });
 
-//           const update = board.actionToQuery({
-//             type: "moveNote",
-//             payload: {
-//               noteId: "noteid",
-//               oldColumnName: "Working",
-//               newColumnName: "Backlog",
-//             },
-//           });
+  //         it("should emit update to unset notebook", async () => {
+  //           const board = (await createBoard({
+  //             id: "testid",
+  //             title: "testname",
+  //             body: testConfigBody,
+  //             parent_id: parentNb,
+  //           })) as Board;
 
-//           expect(update).toContainEqual({
-//             type: "put",
-//             path: ["notes", "noteid"],
-//             body: { parent_id: parentNb },
-//           });
-//         });
+  //           const update = board.actionToQuery({
+  //             type: "moveNote",
+  //             payload: {
+  //               noteId: "noteid",
+  //               oldColumnName: "Working",
+  //               newColumnName: "Backlog",
+  //             },
+  //           });
 
-//         it("should emit update to unset completed", async () => {
-//           const board = (await createBoard({
-//             id: "testid",
-//             title: "testname",
-//             body: testConfigBody,
-//             parent_id: parentNb,
-//           })) as Board;
+  //           expect(update).toContainEqual({
+  //             type: "put",
+  //             path: ["notes", "noteid"],
+  //             body: { parent_id: parentNb },
+  //           });
+  //         });
 
-//           const update = board.actionToQuery({
-//             type: "moveNote",
-//             payload: {
-//               noteId: "noteid",
-//               oldColumnName: "Done",
-//               newColumnName: "Working",
-//             },
-//           });
+  //         it("should emit update to unset completed", async () => {
+  //           const board = (await createBoard({
+  //             id: "testid",
+  //             title: "testname",
+  //             body: testConfigBody,
+  //             parent_id: parentNb,
+  //           })) as Board;
 
-//           expect(update).toContainEqual({
-//             type: "put",
-//             path: ["notes", "noteid"],
-//             body: {
-//               todo_completed: 0,
-//             },
-//           });
-//         });
-//       });
+  //           const update = board.actionToQuery({
+  //             type: "moveNote",
+  //             payload: {
+  //               noteId: "noteid",
+  //               oldColumnName: "Done",
+  //               newColumnName: "Working",
+  //             },
+  //           });
 
-//       describe("set rules", () => {
-//         it("should emit update to set tag", async () => {
-//           const board = (await createBoard({
-//             id: "testid",
-//             title: "testname",
-//             body: testConfigBody,
-//             parent_id: parentNb,
-//           })) as Board;
+  //           expect(update).toContainEqual({
+  //             type: "put",
+  //             path: ["notes", "noteid"],
+  //             body: {
+  //               todo_completed: 0,
+  //             },
+  //           });
+  //         });
+  //       });
 
-//           const update = board.actionToQuery({
-//             type: "moveNote",
-//             payload: {
-//               noteId: "noteid",
-//               oldColumnName: "Backlog",
-//               newColumnName: "Ready for review",
-//             },
-//           });
+  //       describe("set rules", () => {
+  //         it("should emit update to set tag", async () => {
+  //           const board = (await createBoard({
+  //             id: "testid",
+  //             title: "testname",
+  //             body: testConfigBody,
+  //             parent_id: parentNb,
+  //           })) as Board;
 
-//           expect(update).toContainEqual({
-//             type: "post",
-//             path: ["tags", "ready", "notes"],
-//             body: { id: "noteid" },
-//           });
-//         });
+  //           const update = board.actionToQuery({
+  //             type: "moveNote",
+  //             payload: {
+  //               noteId: "noteid",
+  //               oldColumnName: "Backlog",
+  //               newColumnName: "Ready for review",
+  //             },
+  //           });
 
-//         it("should emit update to set multiple tags", async () => {
-//           const board = (await createBoard({
-//             id: "testid",
-//             title: "testname",
-//             body: testConfigBody,
-//             parent_id: parentNb,
-//           })) as Board;
+  //           expect(update).toContainEqual({
+  //             type: "post",
+  //             path: ["tags", "ready", "notes"],
+  //             body: { id: "noteid" },
+  //           });
+  //         });
 
-//           const update = board.actionToQuery({
-//             type: "moveNote",
-//             payload: {
-//               noteId: "noteid",
-//               oldColumnName: "Working",
-//               newColumnName: "Done",
-//             },
-//           });
+  //         it("should emit update to set multiple tags", async () => {
+  //           const board = (await createBoard({
+  //             id: "testid",
+  //             title: "testname",
+  //             body: testConfigBody,
+  //             parent_id: parentNb,
+  //           })) as Board;
 
-//           expect(update).toContainEqual({
-//             type: "post",
-//             path: ["tags", "done", "notes"],
-//             body: { id: "noteid" },
-//           });
-//           expect(update).toContainEqual({
-//             type: "post",
-//             path: ["tags", "completed", "notes"],
-//             body: { id: "noteid" },
-//           });
-//         });
+  //           const update = board.actionToQuery({
+  //             type: "moveNote",
+  //             payload: {
+  //               noteId: "noteid",
+  //               oldColumnName: "Working",
+  //               newColumnName: "Done",
+  //             },
+  //           });
 
-//         it("should emit update to set notebook", async () => {
-//           const board = (await createBoard({
-//             id: "testid",
-//             title: "testname",
-//             body: testConfigBody,
-//             parent_id: parentNb,
-//           })) as Board;
+  //           expect(update).toContainEqual({
+  //             type: "post",
+  //             path: ["tags", "done", "notes"],
+  //             body: { id: "noteid" },
+  //           });
+  //           expect(update).toContainEqual({
+  //             type: "post",
+  //             path: ["tags", "completed", "notes"],
+  //             body: { id: "noteid" },
+  //           });
+  //         });
 
-//           const update = board.actionToQuery({
-//             type: "moveNote",
-//             payload: {
-//               noteId: "noteid",
-//               oldColumnName: "Backlog",
-//               newColumnName: "Working",
-//             },
-//           });
+  //         it("should emit update to set notebook", async () => {
+  //           const board = (await createBoard({
+  //             id: "testid",
+  //             title: "testname",
+  //             body: testConfigBody,
+  //             parent_id: parentNb,
+  //           })) as Board;
 
-//           expect(update).toContainEqual({
-//             type: "put",
-//             path: ["notes", "noteid"],
-//             body: { parent_id: `${parentNb}/working` },
-//           });
-//         });
+  //           const update = board.actionToQuery({
+  //             type: "moveNote",
+  //             payload: {
+  //               noteId: "noteid",
+  //               oldColumnName: "Backlog",
+  //               newColumnName: "Working",
+  //             },
+  //           });
 
-//         it("should emit update to set completed", async () => {
-//           const board = (await createBoard({
-//             id: "testid",
-//             title: "testname",
-//             body: testConfigBody,
-//             parent_id: parentNb
-//           })) as Board;
+  //           expect(update).toContainEqual({
+  //             type: "put",
+  //             path: ["notes", "noteid"],
+  //             body: { parent_id: `${parentNb}/working` },
+  //           });
+  //         });
 
-//           const update = board.actionToQuery({
-//             type: "moveNote",
-//             payload: {
-//               noteId: "noteid",
-//               oldColumnName: "Working",
-//               newColumnName: "Done",
-//             },
-//           });
+  //         it("should emit update to set completed", async () => {
+  //           const board = (await createBoard({
+  //             id: "testid",
+  //             title: "testname",
+  //             body: testConfigBody,
+  //             parent_id: parentNb,
+  //           })) as Board;
 
-//           expect(update).toContainEqual({
-//             type: "put",
-//             path: ["notes", "noteid"],
-//             body: {
-//               todo_completed: mockTime,
-//             },
-//           });
-//         });
-//       });
-//     });
-//   });
-// });
+  //           const update = board.actionToQuery({
+  //             type: "moveNote",
+  //             payload: {
+  //               noteId: "noteid",
+  //               oldColumnName: "Working",
+  //               newColumnName: "Done",
+  //             },
+  //           });
+
+  //           expect(update).toContainEqual({
+  //             type: "put",
+  //             path: ["notes", "noteid"],
+  //             body: {
+  //               todo_completed: mockTime,
+  //             },
+  //           });
+  //         });
+  //       });
+  //     });
+  //   });
+});

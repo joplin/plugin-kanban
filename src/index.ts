@@ -10,7 +10,6 @@ import {
   getAllTags,
   getAllNotebooks,
   getNoteById,
-  searchNotes,
 } from "./noteData";
 import { getRuleEditorTypes } from "./rules";
 import { getMdList, getMdTable } from "./markdown";
@@ -143,9 +142,6 @@ async function reloadConfig(noteId: string) {
 async function handleKanbanMessage(msg: Action) {
   if (!openBoard) return;
 
-  const allNotesOld = await searchNotes(openBoard.rootNotebookName);
-  const oldState: BoardState = await openBoard.getBoardState(allNotesOld);
-
   switch (msg.type) {
     case "poll": {
       await new Promise((res) => (pollCb = res));
@@ -208,7 +204,7 @@ async function handleKanbanMessage(msg: Action) {
       newNoteChangedCb = async (noteId: string) => {
         if (!openBoard || !openBoard.isValid) return;
         msg.payload.noteId = noteId;
-        for (const query of openBoard.getBoardUpdate(msg, oldState)) {
+        for (const query of openBoard.getBoardUpdate(msg)) {
           await executeUpdateQuery(query);
         }
       };
@@ -222,15 +218,15 @@ async function handleKanbanMessage(msg: Action) {
     // Propagete action to the active board
     default: {
       if (!openBoard.isValid) break;
-      const updates = openBoard.getBoardUpdate(msg, oldState);
+      const updates = openBoard.getBoardUpdate(msg);
       for (const query of updates) {
         await executeUpdateQuery(query);
       }
     }
   }
 
-  const allNotesNew = await searchNotes(openBoard.rootNotebookName);
-  const newState: BoardState = await openBoard.getBoardState(allNotesNew);
+  await openBoard.refreshBoardState();
+  const newState = { ...openBoard.currentState } as BoardState;
   const currentYaml = getYamlConfig(
     (await getConfigNote(openBoard.configNoteId)).body
   );

@@ -4,8 +4,9 @@ import {
   findAllChildrenNotebook,
   createTag,
   createNotebook,
+  LazyNoteData,
 } from "./noteData";
-import type { Config, Rule, NoteData, UpdateQuery } from "./types";
+import type { Config, Rule, SearchFilter } from "./types";
 
 type RuleFactory = (
   ruleValue: string | string[],
@@ -22,7 +23,8 @@ const rules: Record<string, RuleFactory> = {
     const tagID = (await getTagId(tagName)) || (await createTag(tagName));
     return {
       name: "tag",
-      filterNote: (note: NoteData) => note.tags.includes(tagName),
+      searchFilters: [["tag", tagName]],
+      filterNote: async (note: LazyNoteData) => await note.hasTag(tagName),
       set: (noteId: string) => [
         {
           type: "post",
@@ -47,8 +49,13 @@ const rules: Record<string, RuleFactory> = {
     );
     return {
       name: "tags",
-      filterNote: (note: NoteData) =>
-        tagRules.some(({ filterNote }) => filterNote(note)),
+      searchFilters: tagRules.map(
+        (tag) => (tag.searchFilters as SearchFilter[])[0]
+      ),
+      filterNote: async (note: LazyNoteData) =>
+        Promise.all(tagRules.map((rule) => rule.filterNote(note))).then((res) =>
+          res.includes(true)
+        ),
       set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
       unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
       editorType: "text",
@@ -75,8 +82,8 @@ const rules: Record<string, RuleFactory> = {
 
     return {
       name: "notebookPath",
-      filterNote: (note: NoteData) =>
-        notebookIdsToSearch.includes(note.notebookId),
+      filterNote: async (note: LazyNoteData) =>
+        notebookIdsToSearch.includes(note.data.notebookId),
       set: (noteId: string) => [
         {
           type: "put",
@@ -104,8 +111,8 @@ const rules: Record<string, RuleFactory> = {
     const shouldBeCompeted = val.toLowerCase() === "true";
     return {
       name: "completed",
-      filterNote: (note: NoteData) =>
-        note.isTodo && note.isCompleted === shouldBeCompeted,
+      filterNote: async (note: LazyNoteData) =>
+        note.data.isTodo && note.data.isCompleted === shouldBeCompeted,
       set: (noteId: string) => [
         {
           type: "put",
@@ -131,7 +138,7 @@ const rules: Record<string, RuleFactory> = {
   async excludeNoteId(id: string | string[]) {
     return {
       name: "excludeNoteId",
-      filterNote: (note: NoteData) => note.id !== id,
+      filterNote: async (note: LazyNoteData) => note.data.id !== id,
       set: () => [],
       unset: () => [],
       editorType: "",

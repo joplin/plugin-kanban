@@ -1,4 +1,4 @@
-import { getNotebookPath, getNoteById } from "./noteData";
+import { getNotebookPath, getNoteById, LazyNoteData, search } from "./noteData";
 
 import rules from "./rules";
 import { parseConfigNote } from "./parser";
@@ -10,6 +10,7 @@ import {
   Rule,
   Message,
   Config,
+  SearchQuery,
 } from "./types";
 
 interface Column {
@@ -34,6 +35,12 @@ export default class Board {
    * It is also false if `loadConfig` has't been called yet.
    */
   public isValid: boolean = false;
+
+  /**
+   * The current cached state of the board, including sorted columns,
+   * errors, and tag filters.
+   */
+  public currentState: BoardState | null = null;
 
   /**
    * List of error messages to show in case of an invalid board.
@@ -153,7 +160,7 @@ export default class Board {
         name: col.name,
         rules: [],
       };
-      this.columnNames.push(col.name)
+      this.columnNames.push(col.name);
       this.allColumns.push(newCol);
 
       if (col.backlog) {
@@ -179,14 +186,26 @@ export default class Board {
   }
 
   /**
+   * Check whether the given note is on the board.
+   */
+  async isNoteIdOnBoard(id: string): Promise<boolean> {
+    if (!this.isValid) return false;
+    const note = await getNoteById(id);
+    if (!note) return true;
+    return this.sortNoteIntoColumn(note) !== null;
+  }
+
+  /**
    * Check which column the given note belongs to.
    * Return its name or null if none of them.
    * If multiple columns could match, return the first (leftmost) one.
+   *
+   * Use this method for notes **not** obtained from search.
    */
-  sortNoteIntoColumn(note: NoteData): string | null {
-    const matchesBaseFilters = this.baseFilters.every((r) =>
-      r.filterNote(note)
-    );
+  async sortNoteIntoColumn(note: LazyNoteData): Promise<string | null> {
+    const matchesBaseFilters = (
+      await Promise.all(this.baseFilters.map((r) => r.filterNote(note)))
+    ).every((v) => v);
     if (matchesBaseFilters) {
       const foundCol = this.nonBacklogColumns.find(({ rules }) =>
         rules.some(({ filterNote }) => filterNote(note))
@@ -199,20 +218,12 @@ export default class Board {
   }
 
   /**
-   * Check whether the given note is on the board.
+   * Clear the board state, refetch and resort notes.
+   *
+   * This should only be used on first open and on config change, or if otherwise
+   * state became completely out-of-sync.
    */
-  async isNoteIdOnBoard(id: string): Promise<boolean> {
-    if (!this.isValid) return false;
-    const note = await getNoteById(id);
-    if (!note) return true;
-    return this.sortNoteIntoColumn(note) !== null;
-  }
-
-  /**
-   * Given a list of all notes in the notebook, return the latest board state,
-   * i.e. sorted columns, messages, and hidden tags.
-   */
-  async getBoardState(allNotes: NoteData[]): Promise<BoardState> {
+  async refreshBoardState(): Promise<void> {
     const state: BoardState = {
       name: this.boardName,
       messages: [],
@@ -220,11 +231,57 @@ export default class Board {
     };
 
     if (this.isValid) {
+      // The first search makes sure all base filter rules are satisfied with "and"
+      // (since they are conjunctive), while the second one checks the column-specific
+      // rules with "or" (`any:1`, since those are disjunctive).
+      // Running the two queries separately is neccessary, since Joplin does not
+      // natively support complex logical queries.
+
+      // First filter notes that pass the base filters
+      const baseFilters = this.baseFilters.flatMap(
+        (rule) => rule.searchFilters || []
+      );
+      if (this.rootNotebookName !== "")
+        baseFilters.push(["notebook", this.rootNotebookName]);
+      const baseSearchRes = await search(baseFilters);
+      const baseCandidates = new Map<string, LazyNoteData>();
+      for (const note of baseSearchRes) {
+        const matchesBaseFilters = (
+          await Promise.all(this.baseFilters.map((r) => r.filterNote(note)))
+        ).every((v) => v);
+        if (matchesBaseFilters) baseCandidates.set(note.data.id, note);
+      }
+
+      // Make all column searches in parallel
+      const columnSearchesRes = await Promise.all(
+        this.nonBacklogColumns.map((col) =>
+          search(col.rules.flatMap((r) => r.searchFilters || []))
+        )
+      );
       const sortedNotes: { [col: string]: NoteData[] } = {};
-      this.columnNames.forEach((n) => (sortedNotes[n] = []));
-      for (const note of allNotes) {
-        const colName = this.sortNoteIntoColumn(note);
-        if (colName) sortedNotes[colName].push(note);
+      this.allColumns.forEach((col) => (sortedNotes[col.name] = []));
+      // Need the imperative style, so that we can break at the first matching rule.
+      for (let i = 0; i < columnSearchesRes.length; i++) {
+        const col = this.nonBacklogColumns[i];
+        const searchRes = columnSearchesRes[i];
+        for (const note of searchRes) {
+          if (!baseCandidates.has(note.data.id)) continue;
+          for (const rule of col.rules) {
+            if (await rule.filterNote(note)) {
+              baseCandidates.delete(note.data.id);
+              sortedNotes[col.name].push(await note.fullyLoadData());
+              break;
+            }
+          }
+        }
+      }
+
+      if (this.backlogColumn) {
+        for (const note of baseCandidates.values()) {
+          sortedNotes[this.backlogColumn.name as string].push(
+            await note.fullyLoadData()
+          );
+        }
       }
 
       const sortedColumns: BoardState["columns"] = Object.entries(
@@ -244,7 +301,7 @@ export default class Board {
       state.messages = this.errorMessages;
     }
 
-    return state;
+    this.currentState = state;
   }
 
   /**
@@ -253,7 +310,7 @@ export default class Board {
    *
    * Return an empty list if can't handle the action type.
    */
-  getBoardUpdate(action: Action, boardState: BoardState) {
+  getBoardUpdate(action: Action) {
     switch (action.type) {
       case "newNote":
         const col = this.allColumns.find(
@@ -288,7 +345,7 @@ export default class Board {
             path: ["notes", note],
             body: { order },
           });
-        const notesInCol = boardState.columns?.find(
+        const notesInCol = this.currentState?.columns?.find(
           (col) => col.name === newColumnName
         )?.notes as NoteData[];
         const notes = notesInCol.filter((note) => note.id !== noteId);

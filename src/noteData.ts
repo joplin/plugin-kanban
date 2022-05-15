@@ -1,101 +1,157 @@
 import joplin from "api";
 import { getUpdatedConfigNote } from "./parser";
-import { NoteData, ConfigNote, UpdateQuery } from "./types";
+import {
+  NoteData,
+  ConfigNote,
+  UpdateQuery,
+  SearchFilter,
+  SearchQuery,
+} from "./types";
+import { quote } from "./utils";
 
 /**
- * Execute the given search query and return all matching notes in the kanban format.
+ * Common fields required for `LazyNodeData` container.
+ */
+const searchFields = [
+  "id",
+  "title",
+  "parent_id",
+  "is_todo",
+  "todo_completed",
+  "todo_due",
+  "order",
+  "created_time",
+];
+
+/**
+ * Note data returned by the Data API, using the `searchFields` fields.
+ */
+interface RawNote {
+  id: string;
+  title: string;
+  parent_id: string;
+  is_todo: 0 | 1;
+  todo_completed: 0 | 1;
+  todo_due: number;
+  order: number;
+  created_time: number;
+}
+
+/**
+ * `/search` endpoint response format.
+ */
+interface SearchResponse {
+  items: RawNote[];
+  has_more: boolean;
+}
+
+/**
+ * Container for notes in kanban format. Data which would require extra requests
+ * (eg. tags), is fetched on-demand, unless cached.
+ *
+ * Tags can be cached with `addKnownTags`, eg. if the note was obtained from
+ * a search with tag filters, we know for sure that the note has the given tag,
+ * no need for additional requests.
+ */
+export class LazyNoteData {
+  private _tags: string[] | null = null;
+
+  constructor(
+    public data: Omit<NoteData, "tags">,
+    public readonly knownTags: string[] = []
+  ) {}
+
+  static fromRawNote(note: RawNote, knownTags: string[] = []) {
+    return new LazyNoteData(
+      {
+        id: note.id,
+        title: note.title,
+        notebookId: note.parent_id,
+        isTodo: !!note.is_todo,
+        isCompleted: !!note.todo_completed,
+        due: note.todo_due,
+        order: note.order === 0 ? note.created_time : note.order,
+        createdTime: note.created_time,
+      },
+      knownTags
+    );
+  }
+
+  private loadTags = async () =>
+    this._tags === null &&
+    (console.log("data call get", ["notes", this.data.id, "tags"]),
+    (this._tags = (
+      await joplin.data.get(["notes", this.data.id, "tags"])
+    ).items.map((t: any) => t.title as string)));
+
+  hasTag = async (tag: string) => {
+    if (this.knownTags.includes(tag)) return true;
+    await this.loadTags();
+    return this._tags?.includes(tag) ?? false;
+  };
+
+  fullyLoadData = async (): Promise<NoteData> => {
+    await this.loadTags();
+    return {
+      ...this.data,
+      tags: this._tags as string[],
+    };
+  };
+}
+
+/**
+ * Run a search with the given filters, store them in `LazyNodeData`
+ * objects and return results.
+ *
+ * We save the tags used in the filter to avoid having to fetch them later, but only
+ * if the query contains no `any:1` filter.
  *
  * @see https://joplinapp.org/help/#searching
  */
-async function search(query: string): Promise<NoteData[]> {
-  const fields = [
-    "id",
-    "title",
-    "parent_id",
-    "is_todo",
-    "todo_completed",
-    "todo_due",
-    "order",
-    "created_time",
-  ];
+export async function search(filters: SearchFilter[]): Promise<LazyNoteData[]> {
+  const query = filters
+    .map(([filter, value]) => `${filter}:${quote(value)}`)
+    .join(" ");
 
-  type RawNote = {
-    id: string;
-    title: string;
-    parent_id: string;
-    is_todo: 0 | 1;
-    todo_completed: 0 | 1;
-    todo_due: number;
-    order: number;
-    created_time: number;
-  };
+  // If there is an "any:1" filter, we won't know which tags apply to a note
+  // so we don't cache any.
+  const isAny = !!filters.find(([f]) => f === "any");
+  const knownTags = isAny
+    ? []
+    : filters.filter(([filter]) => filter === "tag").map(([_, v]) => v);
 
-  type Response = {
-    items: RawNote[];
-    has_more: boolean;
-  };
-
-  let allNotes: any[] = [];
+  let results: RawNote[] = [];
   let page = 1;
   while (true) {
     console.log("data call get", query === "" ? ["notes"] : ["search"], {
       query,
       page,
-      fields,
+      fields: searchFields,
     });
-    const { items: notes, has_more: hasMore }: Response = await joplin.data.get(
+    const { items, has_more }: SearchResponse = await joplin.data.get(
       query === "" ? ["notes"] : ["search"],
-      { query, page, fields }
+      {
+        query,
+        page,
+        fields: searchFields,
+      }
     );
-    allNotes = allNotes.concat(notes);
+    results = results.concat(items);
 
-    if (!hasMore) break;
+    if (!has_more) break;
     else page++;
   }
 
-  allNotes.forEach((note) =>
-    console.log("data call get", ["notes", note.id, "tags"])
-  );
-  const inflightTagRequests = allNotes.map((note) =>
-    joplin.data.get(["notes", note.id, "tags"])
-  );
-  const tagsForNotes = (await Promise.all(inflightTagRequests)).map((r) =>
-    r.items.map(({ title }: { title: string }) => title)
-  );
-  const result = allNotes.map(
-    (note, index) =>
-      <NoteData>{
-        id: note.id,
-        title: note.title,
-        tags: tagsForNotes[index],
-        isTodo: !!note.is_todo,
-        isCompleted: !!note.todo_completed,
-        notebookId: note.parent_id,
-        due: note.todo_due,
-        order: note.order === 0 ? note.created_time : note.order,
-        createdTime: note.created_time,
-      }
-  );
-
-  return result;
+  return results.map((note) => LazyNoteData.fromRawNote(note, knownTags));
 }
 
 /**
- * Get all notes of interest using search. Can restrict search to a notebook.
+ * Get a specific note by id in `LazyNodeData` format.
  */
-export async function searchNotes(
-  rootNotebookName: string
-): Promise<NoteData[]> {
-  const query = rootNotebookName === "" ? "" : `notebook:"${rootNotebookName}"`;
-  return search(query);
-}
-
-/**
- * Get a specific note by id in the kanban format.
- */
-export async function getNoteById(id: string): Promise<NoteData> {
-  const query = `id:${id}`;
-  return (await search(query))[0];
+export async function getNoteById(id: string): Promise<LazyNoteData> {
+  return LazyNoteData.fromRawNote(
+    (await joplin.data.get(["notes", id], { fields: searchFields })) as RawNote
+  );
 }
 
 /**

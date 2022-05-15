@@ -1,4 +1,5 @@
 import { Action } from "./actions";
+import { LazyNoteData } from "./noteData";
 
 // UI Types
 
@@ -37,35 +38,17 @@ export interface Config {
 
 // Board types
 
-export interface BoardBase {
-  isValid: boolean;
-  configNoteId: string;
-  boardName: string;
-  configYaml: string;
-}
+export type SearchFilter = [string, string];
 
-export interface ValidBoard extends BoardBase {
-  isValid: true;
-  parsedConfig: Config;
-  columnNames: string[];
-  rootNotebookName: string;
-  hiddenTags: string[];
-  sortNoteIntoColumn(note: NoteData): string | null;
-  actionToQuery(action: Action, boardState: BoardState): UpdateQuery[];
-  getBoardState(): Promise<BoardState>;
-  isNoteIdOnBoard(id: string, board: Board | undefined): Promise<boolean>;
+export interface SearchQuery {
+  all: SearchFilter[];
+  any: SearchFilter[];
 }
-
-export interface InvalidBoard extends BoardBase {
-  isValid: false;
-  errorMessages: Message[];
-}
-
-export type Board = ValidBoard | InvalidBoard;
 
 export interface Rule {
   name: string;
-  filterNote: (note: NoteData) => boolean;
+  searchFilters?: SearchFilter[];
+  filterNote: (note: LazyNoteData) => Promise<boolean>;
   set(noteId: string): UpdateQuery[];
   unset(noteId: string): UpdateQuery[];
   editorType: string;
