@@ -19,14 +19,14 @@ export function useRemoteBoard(): [BoardState | undefined, DispatchFn] {
 
   const shouldPoll = useRef(true);
   const poll = () => {
-    // webviewApi.postMessage({ type: "poll" }).then((newBoard: BoardState) => {
-    //   if (!newBoard) {
-    //     shouldPoll.current = false;
-    //   } else {
-    //     setState({ board: newBoard });
-    //     if (shouldPoll.current === true) poll();
-    //   }
-    // });
+    webviewApi.postMessage({ type: "poll" }).then((newBoard: BoardState) => {
+      if (!newBoard) {
+        shouldPoll.current = false;
+      } else {
+        setState({ board: newBoard });
+        if (shouldPoll.current === true) poll();
+      }
+    });
   };
 
   useEffect(() => {

@@ -14,13 +14,13 @@ import {
 } from "./noteData";
 import { getRuleEditorTypes } from "./rules";
 import { getMdList, getMdTable } from "./markdown";
+import { pushUpdate, waitForUpdate } from "./pusUpdate";
 
 import type { Action } from "./actions";
 import type { ConfigUIData } from "./configui";
 import type { Config, BoardState } from "./types";
 
 let openBoard: Board | undefined;
-let pollCb: (() => void) | undefined;
 let newNoteChangedCb: ((noteId: string) => void) | undefined;
 
 // UI VIEWS
@@ -143,12 +143,11 @@ async function reloadConfig(noteId: string) {
 async function handleKanbanMessage(msg: Action) {
   if (!openBoard) return;
 
-  const allNotesOld = await searchNotes(openBoard.rootNotebookName);
-  const oldState: BoardState = await openBoard.getBoardState(allNotesOld);
-
   switch (msg.type) {
     case "poll": {
-      await new Promise((res) => (pollCb = res));
+      console.log("got poll");
+      await waitForUpdate();
+      console.log("replying poll");
       break;
     }
 
@@ -208,6 +207,8 @@ async function handleKanbanMessage(msg: Action) {
       newNoteChangedCb = async (noteId: string) => {
         if (!openBoard || !openBoard.isValid) return;
         msg.payload.noteId = noteId;
+        const allNotesOld = await searchNotes(openBoard.rootNotebookName);
+        const oldState: BoardState = await openBoard.getBoardState(allNotesOld);
         for (const query of openBoard.getBoardUpdate(msg, oldState)) {
           await executeUpdateQuery(query);
         }
@@ -222,6 +223,8 @@ async function handleKanbanMessage(msg: Action) {
     // Propagete action to the active board
     default: {
       if (!openBoard.isValid) break;
+      const allNotesOld = await searchNotes(openBoard.rootNotebookName);
+      const oldState: BoardState = await openBoard.getBoardState(allNotesOld);
       const updates = openBoard.getBoardUpdate(msg, oldState);
       for (const query of updates) {
         await executeUpdateQuery(query);
@@ -306,7 +309,7 @@ joplin.plugins.register({
       if (!openBoard) return;
       if (openBoard.configNoteId === id) {
         if (!openBoard.isValid) await reloadConfig(id);
-        if (pollCb) pollCb();
+        pushUpdate();
       } else if ((await openBoard.isNoteIdOnBoard(id)) || newNoteChangedCb) {
         if (newNoteChangedCb && !startedHandlingNewNote) {
           startedHandlingNewNote = true;
@@ -316,11 +319,11 @@ joplin.plugins.register({
               (newNoteChangedCb as (id: string) => void)(id);
               newNoteChangedCb = undefined;
               startedHandlingNewNote = false;
-              if (pollCb) pollCb();
+              pushUpdate();
             }, 100); // For some reason this delay is required to make adding new notes reliable
           } else startedHandlingNewNote = false;
         }
-        if (pollCb) pollCb();
+        pushUpdate();
       }
     });
   },
