@@ -61,7 +61,7 @@ export default class JoplinCommands {
      *
      * ```typescript
      * // Create a new note in the current notebook:
-     * await joplin.commands.execute('newNote');
+     * await joplin.commands.execute('newTodo');
      *
      * // Create a new sub-notebook under the provided notebook
      * // Note: internally, notebooks are called "folders".

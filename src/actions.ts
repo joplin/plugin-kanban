@@ -49,8 +49,8 @@ export interface DeleteColAction {
   };
 }
 
-export interface NewNoteAction {
-  type: "newNote";
+export interface newTodoAction {
+  type: "newTodo";
   payload: {
     colName: string;
     noteId?: string;
@@ -66,4 +66,4 @@ export type Action =
   | OpenNoteAction
   | AddColumnAction
   | DeleteColAction
-  | NewNoteAction;
+  | newTodoAction;

@@ -255,7 +255,7 @@ export default class Board {
    */
   getBoardUpdate(action: Action, boardState: BoardState) {
     switch (action.type) {
-      case "newNote":
+      case "newTodo":
         const col = this.allColumns.find(
           ({ name }) => name === action.payload.colName
         ) as Column;

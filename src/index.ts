@@ -21,7 +21,7 @@ import type { ConfigUIData } from "./configui";
 import type { Config, BoardState } from "./types";
 
 let openBoard: Board | undefined;
-let newNoteChangedCb: ((noteId: string) => void) | undefined;
+let newTodoChangedCb: ((noteId: string) => void) | undefined;
 
 // UI VIEWS
 
@@ -201,10 +201,10 @@ async function handleKanbanMessage(msg: Action) {
       break;
     }
 
-    case "newNote": {
-      await joplin.commands.execute("newNote");
+    case "newTodo": {
+      await joplin.commands.execute("newTodo");
       // TODO: this one's buggy
-      newNoteChangedCb = async (noteId: string) => {
+      newTodoChangedCb = async (noteId: string) => {
         if (!openBoard || !openBoard.isValid) return;
         msg.payload.noteId = noteId;
         const allNotesOld = await searchNotes(openBoard.rootNotebookName);
@@ -272,18 +272,18 @@ async function handleKanbanMessage(msg: Action) {
  * Handle note selection change, check if a new board has been opened, or if we left
  * the domain of the current board.
  */
-async function handleNewlyOpenedNote(newNoteId: string) {
+async function handleNewlyOpenedNote(newTodoId: string) {
   if (openBoard) {
-    if (openBoard.configNoteId === newNoteId) return;
-    if (await openBoard.isNoteIdOnBoard(newNoteId)) return;
+    if (openBoard.configNoteId === newTodoId) return;
+    if (await openBoard.isNoteIdOnBoard(newTodoId)) return;
     else {
       hideBoard();
       openBoard = undefined;
     }
   }
 
-  if (!openBoard || (openBoard as Board).configNoteId !== newNoteId) {
-    await reloadConfig(newNoteId);
+  if (!openBoard || (openBoard as Board).configNoteId !== newTodoId) {
+    await reloadConfig(newTodoId);
     if (openBoard) {
       showBoard();
     }
@@ -295,13 +295,13 @@ joplin.plugins.register({
     // Have to call this on start otherwise layout from prevoius session is lost
     showBoard().then(hideBoard);
 
-    let startedHandlingNewNote = false;
+    let startedHandlingnewTodo = false;
     joplin.workspace.onNoteSelectionChange(
       async ({ value }: { value: [string?] }) => {
-        const newNoteId = value?.[0] as string;
-        if (newNoteChangedCb && (await getNoteById(newNoteId)))
-          newNoteChangedCb = undefined;
-        if (newNoteId) handleNewlyOpenedNote(newNoteId);
+        const newTodoId = value?.[0] as string;
+        if (newTodoChangedCb && (await getNoteById(newTodoId)))
+          newTodoChangedCb = undefined;
+        if (newTodoId) handleNewlyOpenedNote(newTodoId);
       }
     );
 
@@ -310,18 +310,18 @@ joplin.plugins.register({
       if (openBoard.configNoteId === id) {
         if (!openBoard.isValid) await reloadConfig(id);
         pushUpdate();
-      } else if ((await openBoard.isNoteIdOnBoard(id)) || newNoteChangedCb) {
-        if (newNoteChangedCb && !startedHandlingNewNote) {
-          startedHandlingNewNote = true;
+      } else if ((await openBoard.isNoteIdOnBoard(id)) || newTodoChangedCb) {
+        if (newTodoChangedCb && !startedHandlingnewTodo) {
+          startedHandlingnewTodo = true;
           const note = await getNoteById(id);
           if (note) {
             setTimeout(() => {
-              (newNoteChangedCb as (id: string) => void)(id);
-              newNoteChangedCb = undefined;
-              startedHandlingNewNote = false;
+              (newTodoChangedCb as (id: string) => void)(id);
+              newTodoChangedCb = undefined;
+              startedHandlingnewTodo = false;
               pushUpdate();
             }, 100); // For some reason this delay is required to make adding new notes reliable
-          } else startedHandlingNewNote = false;
+          } else startedHandlingnewTodo = false;
         }
         pushUpdate();
       }

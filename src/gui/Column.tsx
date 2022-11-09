@@ -22,9 +22,9 @@ export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
       dispatch({ type: "deleteCol", payload: { colName: name } });
   };
 
-  const handleNewNote = () =>
+  const handlenewTodo = () =>
     dispatch({
-      type: "newNote",
+      type: "newTodo",
       payload: {
         colName: name,
       },
@@ -35,7 +35,7 @@ export default function ({ name, notes }: { name: string; notes: NoteData[] }) {
       <ContextMenu options={["Edit", "Delete"]} onSelect={handleMenu}>
         <ColumnHeader>
           {name}{" "}
-          <AddIconCont onClick={handleNewNote}>
+          <AddIconCont onClick={handlenewTodo}>
             <IoMdAdd size="25px" />
           </AddIconCont>{" "}
         </ColumnHeader>
