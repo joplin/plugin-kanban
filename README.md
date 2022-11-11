@@ -14,17 +14,15 @@ To get started, you'll need a notebook which will contain all tasks that you wan
 
 A kanban board is defined by a special type of note, which contains all of its configuration. Create a new note, and paste in the following:
 
-```yaml
-```kanban
-columns:
-  - name: Backlog
-    backlog: true
-  - name: Work in progress
-    tag: wip
-  - name: Finished
-    tag: done
-```​
-```
+    ```kanban
+    columns:
+      - name: Backlog
+        backlog: true
+      - name: Work in progress
+        tag: wip
+      - name: Finished
+        tag: done
+    ```
 
 It is important that the confiuration is surrounded by a code block (` ```kanban ... ``` `), otherwise it won't be detected.
 
