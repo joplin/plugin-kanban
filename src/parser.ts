@@ -1,5 +1,5 @@
 import * as yaml from "js-yaml";
-import rules from "./rules";
+import { rules, filtersRules } from "./rules";
 import { Config, Message } from "./types";
 
 const configRegex = /([\s\S]*?)```kanban([\s\S]*?)```([\s\S]*)/;
@@ -56,7 +56,7 @@ export const validateConfig = (config: Config | {} | null): Message | null => {
     if (typeof config.filters !== "object" || Array.isArray(config.filters))
       return configErr("Filters has to contain a dictionary of rules");
     for (const key in config.filters) {
-      if (!(key in rules) && key !== "rootNotebookPath")
+      if (!(key in filtersRules) && key !== "rootNotebookPath")
         return configErr(`Invalid rule type "${key}" in filters`);
     }
   }

@@ -1,6 +1,6 @@
 import { getNotebookPath, getNoteById } from "./noteData";
 
-import rules from "./rules";
+import { rules, filtersRules } from "./rules";
 import { parseConfigNote } from "./parser";
 import { Action } from "./actions";
 import {
@@ -135,8 +135,8 @@ export default class Board {
     for (const key in configObj.filters) {
       let val = configObj.filters[key];
       if (typeof val === "boolean") val = `${val}`;
-      if (val && key in rules) {
-        const rule = await rules[key](val, rootNotebookPath, configObj);
+      if (val && key in filtersRules) {
+        const rule = await filtersRules[key](val, rootNotebookPath, configObj);
         this.baseFilters.push(rule);
         if (key === "tag") this.hiddenTags.push(val as string);
         else if (key === "tags")

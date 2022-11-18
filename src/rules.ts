@@ -16,7 +16,7 @@ type RuleFactory = (
 /**
  * This map contains all supported rules.
  */
-const rules: Record<string, RuleFactory> = {
+export const rules: Record<string, RuleFactory> = {
   async tag(arg: string | string[]) {
     const tagName = Array.isArray(arg) ? arg[0] : arg;
     const tagID = (await getTagId(tagName)) || (await createTag(tagName));
@@ -139,9 +139,37 @@ const rules: Record<string, RuleFactory> = {
   },
 };
 
+const _filtersRules : Record<string, RuleFactory> = {
+  "-tag": async (arg: string | string[]) => {
+    const tagName = Array.isArray(arg) ? arg[0] : arg;
+
+    const ruleObj = await rules.tag(arg, "", {} as Config);
+    ruleObj.name = "-tag";
+    ruleObj.filterNote = (note: NoteData) => !note.tags.includes(tagName);
+    return ruleObj;
+  },
+
+  "-tags": async (tagNames: string | string[], rootNbPath: string, config: Config) => {
+    if (!Array.isArray(tagNames)) tagNames = [tagNames];
+    const tagRules = await Promise.all(
+      tagNames.map((t) => filtersRules["-tag"](t, rootNbPath, config))
+    );
+    return {
+      name: "-tags",
+      filterNote: (note: NoteData) =>
+        tagRules.every(({ filterNote }) => filterNote(note)),
+      set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
+      unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
+      editorType: "text",
+    };
+  },
+}
+export const filtersRules: Record<string, RuleFactory> = Object.assign({},rules,_filtersRules);
+
 const editorTypes = {
   filters: {
     tags: "tags",
+    "-tags": "tags",
     rootNotebookPath: "notebook",
     completed: "checkbox",
   },
@@ -158,5 +186,3 @@ export const getRuleEditorTypes = (targetPath: string) => {
   if (targetPath.startsWith("column")) return editorTypes.columns;
   throw new Error(`Unkown target path ${targetPath}`);
 };
-
-export default rules;

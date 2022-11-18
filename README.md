@@ -57,15 +57,19 @@ columns:
 ...
 ```
 
-Filters can contain the same rules as columns, except for the `rootNotebookPath` property. This defines the notebook from which notes are displayed on the board. By default, it is the parent notebook of the config note, but you can set it to anything. It's a `/` separated path so with a notebook structure like
+Filters can contain the same rules as columns, and more. Here's the list of supported rules apart from [columns](#columns) rules:
 
-```
-Parent/
-├─ Nested Parent/
-│  ├─ Kanban board/
-```
+* `rootNotebookPath: ...` This defines the notebook from which notes are displayed on the board. By default, it is the parent notebook of the config note, but you can set it to anything. It's a `/` separated path so with a notebook structure like
 
-To give the path to `Kanban board` you should write `"Parent/Nested Parent/Kanban board"`
+  ```
+  Parent/
+  ├─ Nested Parent/
+  │  ├─ Kanban board/
+  ```
+
+  To give the path to `Kanban board` you should write `"Parent/Nested Parent/Kanban board"`
+
+* `-tag: ...` Exclude note if the note has the given tag. You can also use `-tags` to define a list tags.
 
 To edit the filters via the config dialog, click the gear icon next to the board name.
 

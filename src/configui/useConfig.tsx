@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import * as yaml from "js-yaml";
 
 import type { Config, RuleValue } from "../types";
+import { toggleSingularPlural } from "../utils";
 
 export default function (editedPath: string, inputConfig: Config) {
   const [editedKey, colIdxStr = null] = editedPath.split(".", 2) as [
@@ -28,20 +29,22 @@ export default function (editedPath: string, inputConfig: Config) {
     });
 
   useEffect(() => {
-    if ("tag" in editedObj) {
+    if ("tag" in editedObj || "-tag" in editedObj) {
+      const thisProp = "tag" in editedObj ? "tag" : ("-tag" in editedObj ? "-tag" : "");
+      const pluralProp = toggleSingularPlural(thisProp);
       setEditedObj((obj) => {
         const filteredEntries = Object.entries(obj).filter(
-          ([k]) => k !== "tag"
+          ([k]) => k !== thisProp
         );
         const newObj = Object.fromEntries(filteredEntries) as typeof obj;
-        (newObj as any).tags = [
-          editedObj.tag as string,
-          ...((editedObj?.tags as string[]) || []),
+        (newObj as any)[pluralProp] = [
+          editedObj[thisProp] as string,
+          ...((editedObj?.[pluralProp] as string[]) || []),
         ];
         return newObj;
       });
     }
-  }, ["tag" in editedObj]);
+  }, ["tag" in editedObj, "-tag" in editedObj]);
 
   const isBacklog = "backlog" in editedObj && editedObj.backlog;
   useEffect(() => {
@@ -57,9 +60,14 @@ export default function (editedPath: string, inputConfig: Config) {
   }, [isBacklog, Object.keys(editedObj).length]);
 
   const outObjEntries = Object.entries(editedObj)
-    .map(([prop, val]) =>
-      prop === "tags" && val.length === 1 ? ["tag", val[0]] : [prop, val]
-    )
+    .map(([prop, val]) => {
+      if ((prop === "tags" || prop === "-tags") && val.length === 1) {
+        const thisProp = prop === "tags" ? "tags" : (prop === "-tags" ? "-tags" : "");
+        const singularProp = toggleSingularPlural(thisProp);
+        return [singularProp, val[0]];
+      }
+      return [prop, val]
+    })
     .filter(([_, val]) => val !== "" && val !== null && val !== []);
   const outObj = Object.fromEntries(outObjEntries);
   const outConf =
