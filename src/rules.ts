@@ -139,7 +139,7 @@ export const rules: Record<string, RuleFactory> = {
   },
 };
 
-const _filtersRules : Record<string, RuleFactory> = {
+const _filtersRules: Record<string, RuleFactory> = {
   "-tag": async (arg: string | string[]) => {
     const tagName = Array.isArray(arg) ? arg[0] : arg;
 
@@ -164,7 +164,7 @@ const _filtersRules : Record<string, RuleFactory> = {
     };
   },
 }
-export const filtersRules: Record<string, RuleFactory> = Object.assign({},rules,_filtersRules);
+export const filtersRules: Record<string, RuleFactory> = Object.assign({}, rules, _filtersRules);
 
 const editorTypes = {
   filters: {
