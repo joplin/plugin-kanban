@@ -1,6 +1,6 @@
 import joplin from "api";
 import { getUpdatedConfigNote } from "./parser";
-import { NoteData, ConfigNote, UpdateQuery } from "./types";
+import { ConfigNote, Folder, NoteData, UpdateQuery } from "./types";
 
 /**
  * Execute the given search query and return all matching notes in the kanban format.
@@ -34,6 +34,11 @@ async function search(query: string): Promise<NoteData[]> {
     items: RawNote[];
     has_more: boolean;
   };
+
+  const allNotebooks = await getAllNotebooks();
+  const notebookIndex = Object.fromEntries(
+    allNotebooks.map((folder) => [folder.id, folder])
+  );
 
   let allNotes: any[] = [];
   let page = 1;
@@ -71,6 +76,7 @@ async function search(query: string): Promise<NoteData[]> {
         isTodo: !!note.is_todo,
         isCompleted: !!note.todo_completed,
         notebookId: note.parent_id,
+        notebookData: notebookIndex[note.parent_id],
         due: note.todo_due,
         order: note.order === 0 ? note.created_time : note.order,
         createdTime: note.created_time,
@@ -272,28 +278,34 @@ export async function findAllChildrenNotebook(
   return children;
 }
 
-type Folder = {
-  id: string;
-  title: string;
-  parent_id: string;
-};
-
 /**
  * Get a list of all notebooks, with id, title, and parent_id.
  */
 export async function getAllNotebooks(): Promise<Folder[]> {
+  const fields = ["id", "title", "parent_id", "icon"];
+
   let folders: Folder[] = [];
   let page = 1;
+
   while (true) {
     console.log("data call get", ["folders"], { page });
 
     const {
-      items: newFolders,
+      items,
       has_more: hasMore,
-    }: { items: Folder[]; has_more: boolean } = await joplin.data.get(
-      ["folders"],
-      { page }
-    );
+    }: { items: (Folder & { icon: string })[]; has_more: boolean } =
+      await joplin.data.get(["folders"], { page, fields });
+    const newFolders = items.map((folder) => {
+      let icon = folder.icon || null;
+      if (icon)
+        try {
+          // Is it always JSON? I'm not sure.
+          icon = JSON.parse(icon);
+        } catch (e) {
+          console.error(e);
+        }
+      return { ...folder, icon };
+    });
     folders = [...folders, ...newFolders];
 
     if (!hasMore) break;

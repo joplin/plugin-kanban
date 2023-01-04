@@ -1,16 +1,20 @@
-import React from "react";
+import React, { useContext } from "react";
 import styled from "styled-components";
-import { IoMdPricetag } from "react-icons/io";
+import { IoMdFolder, IoMdPricetag } from "react-icons/io";
 import { IoCalendarOutline } from "react-icons/io5";
 import moment from "moment";
 
 import type { NoteData } from "../types";
+import { BoardContext } from "./index";
 
 const dateFmt = document.getElementById('date-fmt')?.innerHTML || ""
 
 export default React.forwardRef<HTMLDivElement, { note: NoteData }>(
   ({ note }, ref) => {
-    const { title, tags, due } = note;
+    
+    const board = useContext(BoardContext);
+    
+    const { title, tags, due, notebookData: notebook } = note;
 
     const renderExtra = (
       key: number,
@@ -23,10 +27,28 @@ export default React.forwardRef<HTMLDivElement, { note: NoteData }>(
         {text}
       </ExtraItem>
     );
+
     const extras: [React.ReactNode, string, string?][] = tags.map((tag) => [
       <IoMdPricetag size="1rem" />,
       tag,
     ]);
+
+    if (board.displayConfig.showNotebookTag) {
+      const { icon } = notebook;
+      extras.unshift([
+        icon ? (
+          icon.dataUrl ? (
+            <DataIcon alt={notebook.title} src={icon.dataUrl} />
+          ) : (
+            <span>{icon.emoji}</span>
+          )
+        ) : (
+          <IoMdFolder size="1rem" />
+        ),
+        notebook.title,
+      ]);
+    }
+
     if (due > 0) {
       const dueDate = new Date(due);
       const dateStr = moment(dueDate).format(dateFmt);
@@ -82,4 +104,9 @@ const ExtraItem = styled.div<{ color: string }>(({ color }) => ({
 
 const IconCont = styled.span({
   marginRight: "4px",
+});
+
+const DataIcon = styled.img({
+  maxHeight: "1rem",
+  maxWidth: "1rem",
 });

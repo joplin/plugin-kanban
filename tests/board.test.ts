@@ -66,6 +66,12 @@ const note = (args: Partial<NoteData> = {}): NoteData => ({
   id: "id",
   title: "title",
   notebookId: parentNb,
+  notebookData: {
+    id: parentNb,
+    title: "notebook",
+    icon: { emoji: "☢️" },
+    parent_id: ""
+  },
   tags: ["task"],
   createdTime: mockTime,
   due: 0,
@@ -90,6 +96,7 @@ const state = (
     { name: "Working", notes: working },
     { name: "Done", notes: done },
   ],
+  displayConfig: {},
 });
 
 describe("Board", () => {

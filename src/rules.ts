@@ -151,10 +151,14 @@ const editorTypes = {
     completed: "checkbox",
     backlog: "checkbox",
   },
+  display: {
+    showNotebookTag: "checkbox",
+  },
 };
 
 export const getRuleEditorTypes = (targetPath: string) => {
   if (targetPath === "filters") return editorTypes.filters;
+  if (targetPath === "display") return editorTypes.display;
   if (targetPath.startsWith("column")) return editorTypes.columns;
   throw new Error(`Unkown target path ${targetPath}`);
 };

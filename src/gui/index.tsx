@@ -1,16 +1,17 @@
 import React from "react";
 import { render } from "react-dom";
 import styled from "styled-components";
-import { IoMdSettings, IoMdAdd } from "react-icons/io";
+import { IoMdSettings, IoMdAdd, IoMdEye } from "react-icons/io";
 
 import { capitalize } from "../utils";
 import { DispatchFn, useRemoteBoard } from "./hooks";
 import { DragDropContext } from "./DragDrop";
 import Column from "./Column";
-import type { Message } from "../types";
+import type { BoardState, Message } from "../types";
 
 export const DispatchContext = React.createContext<DispatchFn>(async () => {});
 export const IsWaitingContext = React.createContext<boolean>(false);
+export const BoardContext = React.createContext<BoardState>({} as BoardState);
 
 function MessageBox({
   message,
@@ -57,49 +58,59 @@ function App() {
   }));
 
   const cont = board ? (
-    <Container>
-      <Header>
-        {board.name}
-        <IconCont
-          onClick={() =>
-            dispatch({ type: "settings", payload: { target: "filters" } })
-          }
-        >
-          <IoMdSettings size="25px" />
-        </IconCont>
-
-        <IconCont
-          onClick={() =>
-            dispatch({ type: "settings", payload: { target: "columnnew" } })
-          }
-        >
-          <IoMdAdd size="25px" />
-        </IconCont>
-      </Header>
-
-      <MessagesCont>
-        {board.messages.map((msg, idx) => (
-          <MessageBox
-            key={idx}
-            message={msg}
-            onMsgAction={(action) =>
-              dispatch({
-                type: "messageAction",
-                payload: { actionName: action, messageId: msg.id },
-              })
+    <BoardContext.Provider value={board}>
+      <Container>
+        <Header>
+          {board.name}
+          <IconCont
+            onClick={() =>
+              dispatch({ type: "settings", payload: { target: "filters" } })
             }
-          />
-        ))}
-      </MessagesCont>
+          >
+            <IoMdSettings size="25px" />
+          </IconCont>
 
-      {board.columns && (
-        <ColumnsCont>
-          {notesToShow?.map(({ name, notes }) => (
-            <Column key={name} name={name} notes={notes} />
+          <IconCont
+            onClick={() =>
+              dispatch({ type: "settings", payload: { target: "display" } })
+            }
+          >
+            <IoMdEye size="25px" />
+          </IconCont>
+
+          <IconCont
+            onClick={() =>
+              dispatch({ type: "settings", payload: { target: "columnnew" } })
+            }
+          >
+            <IoMdAdd size="25px" />
+          </IconCont>
+        </Header>
+
+        <MessagesCont>
+          {board.messages.map((msg, idx) => (
+            <MessageBox
+              key={idx}
+              message={msg}
+              onMsgAction={(action) =>
+                dispatch({
+                  type: "messageAction",
+                  payload: { actionName: action, messageId: msg.id },
+                })
+              }
+            />
           ))}
-        </ColumnsCont>
-      )}
-    </Container>
+        </MessagesCont>
+
+        {board.columns && (
+          <ColumnsCont>
+            {notesToShow?.map(({ name, notes }) => (
+              <Column key={name} name={name} notes={notes} />
+            ))}
+          </ColumnsCont>
+        )}
+      </Container>
+    </BoardContext.Provider>
   ) : (
     <h1>Loading...</h1>
   );
