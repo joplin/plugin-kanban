@@ -31,7 +31,8 @@ export interface Config {
     backlog?: boolean;
   }[];
   display: {
-    markdown: string;
+    markdown?: string;
+    showNotebookTag?: boolean;
   };
 }
 
@@ -79,6 +80,7 @@ export interface BoardState {
   }[];
   hiddenTags: string[];
   messages: Message[];
+  displayConfig: Config["display"];
 }
 
 // Joplin API related types
@@ -96,11 +98,22 @@ export interface ConfigNote {
   body: string;
 }
 
+export interface Folder {
+  id: string;
+  title: string;
+  parent_id: string;
+  icon: null | {
+    emoji: string;
+    dataUrl?: string;
+  };
+}
+
 export interface NoteData {
   id: string;
   title: string;
   tags: string[];
   notebookId: string;
+  notebookData: Folder;
   isTodo: boolean;
   isCompleted: boolean;
   due: number;

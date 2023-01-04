@@ -217,6 +217,7 @@ export default class Board {
       name: this.boardName,
       messages: [],
       hiddenTags: [],
+      displayConfig: this.parsedConfig?.display ?? {},
     };
 
     if (this.isValid) {
