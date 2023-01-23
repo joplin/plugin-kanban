@@ -81,6 +81,21 @@ const rules: Record<string, RuleFactory> = {
     };
   },
 
+  async alltags(tagNames: string | string[], rootNbPath: string, config: Config) {
+    if (!Array.isArray(tagNames)) tagNames = [tagNames];
+    const tagRules = await Promise.all(
+      tagNames.map((t) => rules.tag(t, rootNbPath, config))
+    );
+    return {
+      name: "alltags",
+      filterNote: (note: NoteData) =>
+        tagRules.every(({ filterNote }) => filterNote(note)),
+      set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
+      unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
+      editorType: "text",
+    };
+  },
+
   async notebookPath(path: string | string[], rootNotebookPath: string) {
     if (Array.isArray(path)) path = path[0];
 
