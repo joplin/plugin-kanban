@@ -18,26 +18,52 @@ type RuleFactory = (
  */
 const rules: Record<string, RuleFactory> = {
   async tag(arg: string | string[]) {
-    const tagName = Array.isArray(arg) ? arg[0] : arg;
-    const tagID = (await getTagId(tagName)) || (await createTag(tagName));
-    return {
-      name: "tag",
-      filterNote: (note: NoteData) => note.tags.includes(tagName),
-      set: (noteId: string) => [
-        {
-          type: "post",
-          path: ["tags", tagID, "notes"],
-          body: { id: noteId },
-        },
-      ],
-      unset: (noteId: string) => [
-        {
-          type: "delete",
-          path: ["tags", tagID, "notes", noteId],
-        },
-      ],
-      editorType: "text",
-    };
+    const tagArg = Array.isArray(arg) ? arg[0] : arg;
+    if (tagArg.startsWith('-')) {
+      const tagName = tagArg.substring(1)
+      console.info('replace ', tagArg, ' with ', tagName)
+      const tagID = (await getTagId(tagName)) || (await createTag(tagName));
+      return {
+        name: "tag",
+        filterNote: (note: NoteData) => !note.tags.includes(tagName),
+        set: (noteId: string) => [
+          {
+            type: "delete",
+            path: ["tags", tagID, "notes", noteId],
+          },
+        ],
+        unset: (noteId: string) => [
+          {
+            type: "post",
+            path: ["tags", tagID, "notes"],
+            body: { id: noteId },
+          },
+        ],
+        editorType: "text",
+      };
+    }
+    else {
+      const tagName = tagArg
+      const tagID = (await getTagId(tagName)) || (await createTag(tagName));
+      return {
+        name: "tag",
+        filterNote: (note: NoteData) => note.tags.includes(tagName),
+        set: (noteId: string) => [
+          {
+            type: "post",
+            path: ["tags", tagID, "notes"],
+            body: { id: noteId },
+          },
+        ],
+        unset: (noteId: string) => [
+          {
+            type: "delete",
+            path: ["tags", tagID, "notes", noteId],
+          },
+        ],
+        editorType: "text",
+      };
+    }
   },
 
   async tags(tagNames: string | string[], rootNbPath: string, config: Config) {
