@@ -1,7 +1,7 @@
 import React from "react";
 import { render } from "react-dom";
 import styled from "styled-components";
-import { IoMdSettings, IoMdAdd } from "react-icons/io";
+import { IoMdSettings, IoMdAdd, IoMdClose } from "react-icons/io";
 
 import { capitalize } from "../utils";
 import { DispatchFn, useRemoteBoard } from "./hooks";
@@ -59,6 +59,13 @@ function App() {
   const cont = board ? (
     <Container>
       <Header>
+        <IconCont
+          onClick={() => {
+            dispatch({ type: "close" })
+          }}
+        >
+            <IoMdClose size="20px"/>
+        </IconCont>
         {board.name}
         <IconCont
           onClick={() =>
@@ -147,7 +154,7 @@ const IconCont = styled("div")({
   alignItems: "center",
   borderRadius: "5px",
 
-  "&:first-child": {
+  "&:nth-child(2)": {
     marginLeft: "auto",
   },
   "&:hover": {
