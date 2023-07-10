@@ -57,6 +57,10 @@ export interface NewNoteAction {
   };
 }
 
+export interface CloseAction {
+  type: "close";
+}
+
 export type Action =
   | MoveNoteAction
   | LoadAction
@@ -66,4 +70,5 @@ export type Action =
   | OpenNoteAction
   | AddColumnAction
   | DeleteColAction
-  | NewNoteAction;
+  | NewNoteAction
+  | CloseAction;
