@@ -127,10 +127,9 @@ async function reloadConfig(noteId: string) {
   const valid = ymlConfig !== null && (await board.loadConfig(ymlConfig));
   if (valid) {
     openBoard = board;
-  } else {
-    openBoard = undefined;
-    hideBoard();
   }
+  // Do nothing if it is not valid. 
+  // User could close the kanban by using the "x" button
 }
 
 // EVENT HANDLERS
@@ -220,6 +219,10 @@ async function handleKanbanMessage(msg: Action) {
     case "load":
       break;
 
+    case "close":
+      openBoard = undefined;
+      return hideBoard();
+
     // Propagete action to the active board
     default: {
       if (!openBoard.isValid) break;
@@ -273,12 +276,19 @@ async function handleKanbanMessage(msg: Action) {
  * the domain of the current board.
  */
 async function handleNewlyOpenedNote(newNoteId: string) {
+
   if (openBoard) {
     if (openBoard.configNoteId === newNoteId) return;
     if (await openBoard.isNoteIdOnBoard(newNoteId)) return;
     else {
-      hideBoard();
-      openBoard = undefined;
+      const originalOpenBoard = openBoard;
+      await reloadConfig(newNoteId);
+      if (openBoard && openBoard.isValid && originalOpenBoard!==openBoard) {
+        // If user opened a new board, close and open again to refresh the content
+        hideBoard()
+        showBoard();
+      }
+      return;
     }
   }
 
