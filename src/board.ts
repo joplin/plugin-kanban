@@ -189,7 +189,7 @@ export default class Board {
     );
     if (matchesBaseFilters) {
       const foundCol = this.nonBacklogColumns.find(({ rules }) =>
-        rules.some(({ filterNote }) => filterNote(note))
+        rules.every(({ filterNote }) => filterNote(note))
       );
       if (foundCol) return foundCol.name;
       if (this.backlogColumn) return this.backlogColumn.name;

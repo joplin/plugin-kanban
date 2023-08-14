@@ -18,26 +18,52 @@ type RuleFactory = (
  */
 const rules: Record<string, RuleFactory> = {
   async tag(arg: string | string[]) {
-    const tagName = Array.isArray(arg) ? arg[0] : arg;
-    const tagID = (await getTagId(tagName)) || (await createTag(tagName));
-    return {
-      name: "tag",
-      filterNote: (note: NoteData) => note.tags.includes(tagName),
-      set: (noteId: string) => [
-        {
-          type: "post",
-          path: ["tags", tagID, "notes"],
-          body: { id: noteId },
-        },
-      ],
-      unset: (noteId: string) => [
-        {
-          type: "delete",
-          path: ["tags", tagID, "notes", noteId],
-        },
-      ],
-      editorType: "text",
-    };
+    const tagArg = Array.isArray(arg) ? arg[0] : arg;
+    if (tagArg.startsWith('-')) {
+      const tagName = tagArg.substring(1)
+      console.info('replace ', tagArg, ' with ', tagName)
+      const tagID = (await getTagId(tagName)) || (await createTag(tagName));
+      return {
+        name: "tag",
+        filterNote: (note: NoteData) => !note.tags.includes(tagName),
+        set: (noteId: string) => [
+          {
+            type: "delete",
+            path: ["tags", tagID, "notes", noteId],
+          },
+        ],
+        unset: (noteId: string) => [
+          {
+            type: "post",
+            path: ["tags", tagID, "notes"],
+            body: { id: noteId },
+          },
+        ],
+        editorType: "text",
+      };
+    }
+    else {
+      const tagName = tagArg
+      const tagID = (await getTagId(tagName)) || (await createTag(tagName));
+      return {
+        name: "tag",
+        filterNote: (note: NoteData) => note.tags.includes(tagName),
+        set: (noteId: string) => [
+          {
+            type: "post",
+            path: ["tags", tagID, "notes"],
+            body: { id: noteId },
+          },
+        ],
+        unset: (noteId: string) => [
+          {
+            type: "delete",
+            path: ["tags", tagID, "notes", noteId],
+          },
+        ],
+        editorType: "text",
+      };
+    }
   },
 
   async tags(tagNames: string | string[], rootNbPath: string, config: Config) {
@@ -49,6 +75,21 @@ const rules: Record<string, RuleFactory> = {
       name: "tags",
       filterNote: (note: NoteData) =>
         tagRules.some(({ filterNote }) => filterNote(note)),
+      set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
+      unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
+      editorType: "text",
+    };
+  },
+
+  async alltags(tagNames: string | string[], rootNbPath: string, config: Config) {
+    if (!Array.isArray(tagNames)) tagNames = [tagNames];
+    const tagRules = await Promise.all(
+      tagNames.map((t) => rules.tag(t, rootNbPath, config))
+    );
+    return {
+      name: "alltags",
+      filterNote: (note: NoteData) =>
+        tagRules.every(({ filterNote }) => filterNote(note)),
       set: (noteId: string) => tagRules.flatMap(({ set }) => set(noteId)),
       unset: (noteId: string) => tagRules.flatMap(({ unset }) => unset(noteId)),
       editorType: "text",

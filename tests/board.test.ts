@@ -237,11 +237,11 @@ describe("Board", () => {
           parent_id: parentNb,
         })) as Board;
 
-        const col1 = board.sortNoteIntoColumn(note({ tags: ["task", "done"] }));
+        const col1 = board.sortNoteIntoColumn(note({ tags: ["task", "done"], isTodo: true, isCompleted: true }));
         expect(col1).toBe("Done");
 
         const col2 = board.sortNoteIntoColumn(
-          note({ tags: ["task", "completed"] })
+          note({ tags: ["task", "completed"], isTodo: true, isCompleted: true })
         );
         expect(col2).toBe("Done");
       });
@@ -276,6 +276,7 @@ describe("Board", () => {
 
         const col1 = board.sortNoteIntoColumn(
           note({
+            tags: ["task", "completed"],
             isCompleted: true,
             isTodo: true,
           })
