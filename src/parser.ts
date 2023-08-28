@@ -61,6 +61,15 @@ export const validateConfig = (config: Config | {} | null): Message | null => {
     }
   }
 
+  if ("sort" in config) {
+    if (typeof config.sort !== "object" || config.sort.by === undefined)
+      return configErr("Sort must be a dictionary with a single 'by' field");
+    let cs = config.sort.by;
+    if (cs.startsWith('-')) cs = cs.substring(1);
+    if (['createdTime', 'title'].indexOf(cs) === -1)
+      return configErr("Sort must be one of 'createdTime', 'title'; optionally prefix by '-' for descending order");
+  }
+
   for (const col of config.columns) {
     if (typeof col !== "object" || Array.isArray(col))
       return configErr(

@@ -213,6 +213,7 @@ export default class Board {
    * i.e. sorted columns, messages, and hidden tags.
    */
   async getBoardState(allNotes: NoteData[]): Promise<BoardState> {
+    const config = this.parsedConfig;
     const state: BoardState = {
       name: this.boardName,
       messages: [],
@@ -231,8 +232,28 @@ export default class Board {
         sortedNotes
       ).map(([name, notes]) => ({ name, notes }));
 
+      let sortCol = config ? config.sort?.by : undefined;
+      let sortDir = 1;
+      if (sortCol !== undefined) {
+        if (sortCol.startsWith('-')) {
+          sortDir = -1;
+          sortCol = sortCol.substring(1);
+        }
+      }
       Object.values(sortedColumns).forEach((col) =>
         col.notes.sort((a, b) => {
+          if (sortCol !== undefined) {
+            const va = (a as any)[sortCol];
+            const vb = (b as any)[sortCol];
+            const v = (
+                (typeof va === "string")
+                  ? va.toLocaleLowerCase().localeCompare(vb.toLocaleLowerCase())
+                  : va - vb
+            );
+            return v * sortDir;
+          }
+
+          // Otherwise, use user-order specified on Kanban board
           if (a.order < b.order) return +1;
           if (a.order > b.order) return -1;
           return a.createdTime < b.createdTime ? +1 : -1;

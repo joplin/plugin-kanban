@@ -85,6 +85,20 @@ display:
 
 Visual examples and more info: https://github.com/joplin/plugin-kanban/pull/19
 
+### Sort
+
+By default, the kanban plugin sorts each column based on the user's dragging and dropping of notes across the kanban board, with new notes going at the top. To specify a fixed sort pattern based on note properties instead, use the following config:
+
+```yaml
+```kanban
+sort:
+  by: title
+```
+
+Descending sort order may be specified by prefixing `-`, e.g., `-title`.
+
+The configured sort order will apply to all columns.
+
 ## Further information
 
 If you want to know more about the workings of the plugin or its development check out the [original proposal](https://discourse.joplinapp.org/t/kanban-board-project/17469) and the [progress reports](https://discourse.joplinapp.org/t/kanban-board-project/17469)

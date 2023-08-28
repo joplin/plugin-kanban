@@ -25,6 +25,9 @@ export interface Config {
     [ruleName: string]: RuleValue;
     rootNotebookPath?: string;
   };
+  sort: {
+    by?: string;
+  };
   columns: {
     [ruleName: string]: RuleValue;
     name: string;
