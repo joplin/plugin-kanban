@@ -24,7 +24,7 @@ A kanban board is defined by a special type of note, which contains all of its c
         tag: done
     ```
 
-It is important that the confiuration is surrounded by a code block (` ```kanban ... ``` `), otherwise it won't be detected.
+It is important that the configuration is surrounded by a code block (` ```kanban ... ``` `), otherwise it won't be detected.
 
 After pasting the configuration, you might have to switch to a different note, then back, but then you should immediately see a kanban view pop up on the right. It should contain all notes in the notebook, sorted into columns. You can drag the notes around and see that their tags are updated.
 
